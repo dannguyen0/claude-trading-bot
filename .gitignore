@@ -1,0 +1,7 @@
+﻿lambda/package/
+lambda/bot.zip
+__pycache__/
+*.pyc
+*.pyo
+.env
+out.json

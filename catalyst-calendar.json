@@ -1,0 +1,20 @@
+[
+  {
+    "date": "2026-05-13",
+    "type": "CPI",
+    "ticker": "SPY",
+    "description": "April CPI release 8:30 ET"
+  },
+  {
+    "date": "2026-06-04",
+    "type": "NFP",
+    "ticker": "SPY",
+    "description": "May jobs report 8:30 ET"
+  },
+  {
+    "date": "2026-06-18",
+    "type": "FOMC",
+    "ticker": "SPY",
+    "description": "FOMC rate decision 14:00 ET + Powell presser 14:30 ET"
+  }
+]
