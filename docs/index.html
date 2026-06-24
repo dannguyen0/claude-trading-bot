@@ -836,8 +836,8 @@ if (window.Chart) {
 // ----------------------------------------------------------------------------
 const CONFIGS = {
   credit_spread: {
-    alpacaKey:       "YOUR_ALPACA_API_KEY",
-    alpacaSecret:    "YOUR_ALPACA_SECRET",
+    alpacaKey:       "PKWES3MNM3S4EVYXK7RLAP2LU3",
+    alpacaSecret:    "FYdCWUudqqoPM7fJhU5oUsTMX8AW8YXnYViaHjN7qF2D",
     universe:        ["SPY", "QQQ", "IWM"],
     maxSpreads:      5,
     riskCap:         2500,
@@ -845,8 +845,8 @@ const CONFIGS = {
     spreadValueLabel: "Credit",
   },
   momentum: {
-    alpacaKey:       "YOUR_ALPACA_API_KEY_2",
-    alpacaSecret:    "YOUR_ALPACA_SECRET_2",
+    alpacaKey:       "PKDA5FFNISZ6OTUVWTL3UDNL7J",
+    alpacaSecret:    "EpnGTBtB89ZVqrVG8n4Nj6TbM7S2P5JkrmQb8giTXNcf",
     universe:        ["QQQ"],
     maxSpreads:      2,
     riskCap:         500,
@@ -855,8 +855,8 @@ const CONFIGS = {
     spreadValueLabel: "Premium",
   },
   naked: {
-    alpacaKey:       "YOUR_ALPACA_API_KEY_3",
-    alpacaSecret:    "YOUR_ALPACA_SECRET_3",
+    alpacaKey:       "PKTIV65J6RNU6HDQ3WGSX4PRNC",
+    alpacaSecret:    "Eed8QjaeKqqFX3cRFaTNmnUxKW7mFXxL2HRsbHJGraki",
     universe:        ["SPY","QQQ","NVDA","TSLA","AAPL","AMD","META","GOOGL","MRVL","AMZN","MSFT","COIN","PLTR","SMCI"],
     maxSpreads:      4,
     riskCap:         4000,
@@ -866,7 +866,7 @@ const CONFIGS = {
 };
 const COMMON = {
   alpacaBase:   "https://paper-api.alpaca.markets",
-  lambdaApiUrl: "YOUR_LAMBDA_FUNCTION_URL",
+  lambdaApiUrl: "https://sayhgm8sb2.execute-api.us-east-1.amazonaws.com",
 };
 
 let ACTIVE_STRATEGY = "naked";
@@ -1391,12 +1391,12 @@ async function loadActivity() {
             const stage = d.stage || d.error || "error";
             // Human-readable labels for common error stages
             const stageLabels = {
-              "naked_open_no_fill":  "No fill — order expired (tried ask + $0.05)",
+              "naked_open_no_fill":  "No fill â€” order expired (tried ask + $0.05)",
               "naked_open":          "Order rejected by Alpaca",
-              "squeeze_no_fill":     "No fill — order expired",
-              "qqq_open_no_fill":    "No fill — order expired",
+              "squeeze_no_fill":     "No fill â€” order expired",
+              "qqq_open_no_fill":    "No fill â€” order expired",
             };
-            // For error events, reason field contains the Claude rationale, not the error — don't show it
+            // For error events, reason field contains the Claude rationale, not the error â€” don't show it
             summary = stageLabels[stage] || stage.replace(/_/g, " ");
           } else if (kind === "skip") {
             // Produce a short clean label, strip parentheticals like (proceed_to_options=false)
