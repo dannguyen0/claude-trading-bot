@@ -1385,9 +1385,25 @@ async function loadActivity() {
             const credit = d.credit != null ? parseFloat(d.credit).toFixed(2) : null;
             const pnl = d.pnl != null ? parseFloat(d.pnl) : null;
             const pnlStr = pnl != null ? ` P&L ${pnl >= 0 ? "+" : ""}$${pnl.toFixed(0)}` : "";
-            summary = (sh != null && lo != null)
-              ? `${sh}/${lo}P @ $${credit}${pnlStr}`
-              : (d.reason || "-");
+
+            // Naked / squeeze single-leg: show entry or exit price
+            const entryPremium = d.premium_paid  != null ? parseFloat(d.premium_paid)  : null;
+            const exitPremium  = d.exit_premium   != null ? parseFloat(d.exit_premium)  : null;
+            const pnlDlr = d.pnl_dollars != null ? parseFloat(d.pnl_dollars) : null;
+            const strike = d.strike != null ? d.strike : null;
+            const optType = d.option_type ? (d.option_type === "call" ? "C" : "P") : (d.direction === "bullish" ? "C" : d.direction === "bearish" ? "P" : null);
+
+            if (kind === "open" && entryPremium != null) {
+              const strikeStr = strike ? ` $${strike}${optType || ""}` : "";
+              summary = `Bought${strikeStr} @ $${entryPremium.toFixed(2)}/contract`;
+            } else if (kind === "close" && exitPremium != null) {
+              const pnlStr2 = pnlDlr != null ? `  ${pnlDlr >= 0 ? "+" : ""}$${pnlDlr.toFixed(0)}` : "";
+              summary = `Sold @ $${exitPremium.toFixed(2)}/contract${pnlStr2}`;
+            } else if (sh != null && lo != null) {
+              summary = `${sh}/${lo}P @ $${credit}${pnlStr}`;
+            } else {
+              summary = d.reason || "-";
+            }
           } else if (kind === "error") {
             const stage = d.stage || d.error || "error";
             // Human-readable labels for common error stages
