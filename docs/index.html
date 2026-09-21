@@ -560,25 +560,25 @@ function renderChart() {
   svg.innerHTML = `
     <defs>
       <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${lineColor}" stop-opacity=".18"/>
-        <stop offset="100%" stop-color="${lineColor}" stop-opacity=".02"/>
+        <stop offset="0%" stop-color="${lineColor}" stop-opacity=".07"/>
+        <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
       </linearGradient>
     </defs>
     <!-- Zero line for curve -->
-    <line x1="${PX}" y1="${zeroY.toFixed(1)}" x2="${W-PX}" y2="${zeroY.toFixed(1)}" stroke="var(--border)" stroke-width="1" stroke-dasharray="3 3"/>
+    <line x1="${PX}" y1="${zeroY.toFixed(1)}" x2="${W-PX}" y2="${zeroY.toFixed(1)}" stroke="var(--border-lt)" stroke-width="1" stroke-dasharray="4 4"/>
     <!-- Bar mid line -->
     <line x1="${PX}" y1="${barMidY.toFixed(1)}" x2="${W-PX}" y2="${barMidY.toFixed(1)}" stroke="var(--border-lt)" stroke-width="1"/>
-    <!-- Area + line -->
+    <!-- Subtle area + thin line -->
     <path d="${areaD}" fill="url(#ag)"/>
-    <path d="${lineD}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${lineD}" fill="none" stroke="${lineColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     <!-- Bars -->
     ${bars}
     <!-- Final dot + label -->
-    <circle id="chart-dot" cx="${sx(n-1).toFixed(1)}" cy="${sy(finalVal).toFixed(1)}" r="4" fill="${lineColor}"/>
-    <text id="chart-val-lbl" x="${(sx(n-1)-7).toFixed(1)}" y="${(sy(finalVal)-10).toFixed(1)}" text-anchor="end" fill="${lineColor}" font-size="11" font-weight="600" font-family="DM Sans,sans-serif">${fmt$(Math.round(finalVal))}</text>
+    <circle id="chart-dot" cx="${sx(n-1).toFixed(1)}" cy="${sy(finalVal).toFixed(1)}" r="2.5" fill="${lineColor}"/>
+    <text id="chart-val-lbl" x="${(sx(n-1)-7).toFixed(1)}" y="${(sy(finalVal)-8).toFixed(1)}" text-anchor="end" fill="${lineColor}" font-size="10" font-weight="500" font-family="DM Sans,sans-serif">${fmt$(Math.round(finalVal))}</text>
     <!-- Crosshair (hidden) -->
     <line id="crosshair" x1="0" y1="${CURVE_TOP}" x2="0" y2="${CURVE_BOT}" stroke="var(--text-fade)" stroke-width="1" stroke-dasharray="2 2" opacity="0"/>
-    <circle id="hover-dot" cx="0" cy="0" r="5" fill="var(--surface)" stroke="${lineColor}" stroke-width="2" opacity="0"/>
+    <circle id="hover-dot" cx="0" cy="0" r="3.5" fill="var(--surface)" stroke="${lineColor}" stroke-width="1.5" opacity="0"/>
     <!-- Date labels -->
     ${dateLabels}
     <!-- Invisible hover overlay -->
