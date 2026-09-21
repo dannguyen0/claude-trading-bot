@@ -472,14 +472,15 @@ async function apiFetch(action) {
 async function loadAll() {
   document.getElementById('last-upd').textContent = 'Loadingâ€¦';
   try {
-    const [trades, spreads, analytics] = await Promise.all([
-      apiFetch('trades').catch(() => ({ trades: [] })),
-      apiFetch('spreads').catch(() => ({ spreads: [] })),
+    const [spreads, analytics] = await Promise.all([
+      apiFetch('spreads').catch(() => []),
       apiFetch('analytics').catch(() => ({}))
     ]);
-    S.trades    = trades.trades   || [];
-    S.open      = spreads.spreads || [];
-    S.analytics = analytics       || {};
+    // spreads is a direct array of open positions
+    S.open      = Array.isArray(spreads) ? spreads : [];
+    S.analytics = analytics || {};
+    // closed trades live in analytics.recent_trades
+    S.trades    = S.analytics.recent_trades || [];
     render();
     document.getElementById('last-upd').textContent =
       'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -520,8 +521,9 @@ function contractLabel(t) {
 function dirBadge(t) {
   const sym = t.contract_symbol || t.symbol || '';
   const dir = (t.direction || '').toLowerCase();
-  const isCall = dir === 'bullish' || (sym.match(/(\d)C(\d)/) && !sym.match(/(\d)P(\d)/));
-  const isPut  = dir === 'bearish' || (sym.match(/(\d)P(\d)/) && !sym.match(/(\d)C(\d)/));
+  const otype = (t.option_type || '').toLowerCase();
+  const isCall = otype === 'call' || dir === 'bullish' || /\d{6}C\d/.test(sym);
+  const isPut  = otype === 'put'  || dir === 'bearish' || /\d{6}P\d/.test(sym);
   if (isCall) return '<span class="t-dir call">CALL</span>';
   if (isPut)  return '<span class="t-dir put">PUT</span>';
   return '<span style="color:var(--text-fade);font-size:11px">â€”</span>';
@@ -529,41 +531,49 @@ function dirBadge(t) {
 
 // â”€â”€ KPIs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderKPIs() {
-  const a = S.analytics, trades = S.trades;
-  const eq = a.equity || a.account_equity;
+  const s = S.analytics.summary || {};
+
+  // Buying power: compute from open positions cost vs not available directly
+  const openCost = S.open.reduce((acc, p) => acc + (parseFloat(p.total_cost) || 0), 0);
   const eqEl = document.getElementById('k-equity');
-  if (eq != null) {
-    eqEl.textContent = '$' + parseFloat(eq).toLocaleString('en-US', { maximumFractionDigits: 0 });
-    document.getElementById('k-equity-sub').textContent = 'paper account';
+  if (openCost > 0) {
+    eqEl.textContent = '$' + Math.round(openCost).toLocaleString('en-US');
+    document.getElementById('k-equity-sub').textContent = 'deployed in ' + S.open.length + ' position' + (S.open.length !== 1 ? 's' : '');
   } else {
     eqEl.textContent = 'â€”';
+    document.getElementById('k-equity-sub').textContent = 'no open positions';
   }
 
-  const totalPnl = a.total_pnl != null ? a.total_pnl :
-    trades.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0);
+  const totalPnl = s.total_pnl != null ? s.total_pnl : 0;
   const pnlEl = document.getElementById('k-pnl');
   pnlEl.textContent = fmt$(Math.round(totalPnl));
   pnlEl.className = 'kpi-val ' + (totalPnl >= 0 ? 'pos' : 'neg');
-  document.getElementById('k-pnl-sub').textContent = trades.length + ' closed trades';
+  const daysBack = s.days_back ? s.days_back + 'd window' : '';
+  document.getElementById('k-pnl-sub').textContent = (s.total_trades || S.trades.length) + ' trades' + (daysBack ? ' Â· ' + daysBack : '');
 
-  const total = a.total_trades != null ? a.total_trades : trades.length;
-  const wins  = a.win_count   != null ? a.win_count   : trades.filter(t => (parseFloat(t.pnl)||0) > 0).length;
+  const total = s.total_trades != null ? s.total_trades : S.trades.length;
+  const wins  = s.wins != null ? s.wins : S.trades.filter(t => t.is_win || (parseFloat(t.pnl)||0) > 0).length;
   const wr = total > 0 ? wins / total : 0;
   const wrEl = document.getElementById('k-wr');
-  wrEl.textContent = (wr * 100).toFixed(0) + '%';
+  wrEl.textContent = (s.win_rate != null ? s.win_rate : (wr * 100)).toFixed(0) + '%';
   wrEl.className = 'kpi-val ' + (wr >= 0.4 ? 'pos' : wr < 0.3 ? 'neg' : '');
   document.getElementById('k-wr-sub').textContent = wins + 'W / ' + (total - wins) + 'L';
 
   document.getElementById('k-open').textContent = S.open.length || '0';
-  const openPnl = S.open.reduce((s, p) => s + (parseFloat(p.unrealized_pnl) || 0), 0);
-  document.getElementById('k-open-sub').textContent = S.open.length ?
-    fmt$(Math.round(openPnl)) + ' unrealized' : 'positions';
+  // unrealized: current_value - total_cost per open position
+  const openPnl = S.open.reduce((acc, p) => {
+    const cv = parseFloat(p.current_value) || 0;
+    const tc = parseFloat(p.total_cost) || 0;
+    return acc + (cv > 0 ? cv - tc : 0);
+  }, 0);
+  document.getElementById('k-open-sub').textContent = S.open.length && openPnl !== 0
+    ? fmt$(Math.round(openPnl)) + ' unrealized' : 'positions';
 
-  const avg = total > 0 ? totalPnl / total : 0;
+  const avg = s.expectancy != null ? s.expectancy : (total > 0 ? totalPnl / total : 0);
   const avgEl = document.getElementById('k-avg');
   avgEl.textContent = fmt$(Math.round(avg));
   avgEl.className = 'kpi-val ' + (avg >= 0 ? 'pos' : 'neg');
-  document.getElementById('k-avg-sub').textContent = 'per trade';
+  document.getElementById('k-avg-sub').textContent = 'expectancy per trade';
 }
 
 // â”€â”€ Equity Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -633,26 +643,19 @@ function renderChart() {
 // â”€â”€ Win Rates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderWinRates() {
   const el = document.getElementById('win-list');
-  if (!S.trades.length) { el.innerHTML = '<div class="empty">No trades yet</div>'; return; }
-  const map = {};
-  S.trades.forEach(t => {
-    const k = t.ticker || t.underlying || '?';
-    if (!map[k]) map[k] = { w: 0, n: 0, pnl: 0 };
-    map[k].n++;
-    if ((parseFloat(t.pnl)||0) > 0) map[k].w++;
-    map[k].pnl += parseFloat(t.pnl)||0;
-  });
-  el.innerHTML = Object.entries(map)
-    .sort((a,b) => b[1].n - a[1].n).slice(0,12)
-    .map(([tkr, d]) => {
-      const wr = d.w / d.n;
-      const c = wr >= 0.5 ? 'var(--green)' : wr >= 0.35 ? 'var(--peach)' : 'var(--red)';
-      return `<div class="win-row">
-        <div class="win-ticker">${esc(tkr)}</div>
-        <div class="win-track"><div class="win-fill" style="width:${(wr*100).toFixed(0)}%;background:${c}"></div></div>
-        <div class="win-stat" style="color:${c}">${(wr*100).toFixed(0)}% <span style="color:var(--text-fade)">${d.w}/${d.n}</span></div>
-      </div>`;
-    }).join('');
+  // Use analytics.by_ticker which is already aggregated
+  const byTicker = S.analytics.by_ticker || [];
+  if (!byTicker.length) { el.innerHTML = '<div class="empty">No trades yet</div>'; return; }
+  el.innerHTML = byTicker.slice(0, 12).map(d => {
+    const wr = (d.win_rate || 0) / 100;
+    const c = wr >= 0.5 ? 'var(--green)' : wr >= 0.35 ? 'var(--peach)' : 'var(--red)';
+    const pnlStr = d.pnl != null ? ' Â· ' + fmt$(d.pnl) : '';
+    return `<div class="win-row">
+      <div class="win-ticker">${esc(d.key)}</div>
+      <div class="win-track"><div class="win-fill" style="width:${(wr*100).toFixed(0)}%;background:${c}"></div></div>
+      <div class="win-stat" style="color:${c}">${d.win_rate}% <span style="color:var(--text-fade)">${d.wins}/${d.trades}</span></div>
+    </div>`;
+  }).join('');
 }
 
 // â”€â”€ Open Positions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -661,18 +664,22 @@ function renderOpen() {
   document.getElementById('open-count').textContent = S.open.length ? S.open.length + ' active' : '';
   if (!S.open.length) { grid.innerHTML = '<div class="empty">No open positions</div>'; return; }
   grid.innerHTML = S.open.map(s => {
-    const pnl = parseFloat(s.unrealized_pnl) || 0;
-    const pct = s.unrealized_pnl_pct != null ? fmtPct(s.unrealized_pnl_pct) : '';
+    // unrealized P&L: current_value - total_cost (both in dollars)
+    const cv  = parseFloat(s.current_value) || 0;
+    const tc  = parseFloat(s.total_cost) || 0;
+    const pnl = cv > 0 ? cv - tc : 0;
+    const pct = s.pnl_pct != null ? parseFloat(s.pnl_pct) : (tc > 0 && cv > 0 ? ((cv - tc) / tc * 100) : null);
     const cls = pnl >= 0 ? 'pos' : 'neg';
     const contract = contractLabel(s);
     const dte = s.dte != null ? `<div class="oc-meta"><b>DTE</b> ${esc(s.dte)}</div>` : '';
     const qty = s.qty != null ? `<div class="oc-meta"><b>Qty</b> ${esc(s.qty)}</div>` : '';
-    const ep  = s.entry_price || s.premium_paid;
-    const epStr = ep ? `<div class="oc-meta"><b>Entry</b> $${parseFloat(ep).toFixed(2)}</div>` : '';
+    const ep  = s.premium_paid || s.entry_price;
+    const epStr = ep ? `<div class="oc-meta"><b>Premium</b> $${parseFloat(ep).toFixed(2)}</div>` : '';
+    const pctStr = pct != null ? ' <span style="font-size:13px">' + fmtPct(pct) + '</span>' : '';
     return `<div class="open-card">
       <div class="oc-ticker">${esc(s.ticker||s.underlying||'?')}</div>
       <div class="oc-contract">${esc(contract)}</div>
-      <div class="oc-pnl ${cls}">${fmt$(Math.round(pnl))}${pct?' <span style="font-size:13px">'+esc(pct)+'</span>':''}</div>
+      <div class="oc-pnl ${cls}">${cv > 0 ? fmt$(Math.round(pnl)) + pctStr : 'Pending mark'}</div>
       <div class="oc-metas">${qty}${epStr}${dte}</div>
     </div>`;
   }).join('');
