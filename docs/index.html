@@ -149,19 +149,19 @@ body {
 .open-scroll { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .open-card {
   background: var(--surface-2); border: 1px solid var(--border);
-  border-left: 3px solid var(--blue); border-radius: var(--r-sm); padding: 12px 14px;
+  border-left: 3px solid var(--blue); border-radius: var(--r-sm); padding: 8px 10px;
 }
 .oc-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.oc-ticker { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 600; color: var(--text); }
-.oc-contract { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
-.oc-pnl { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.oc-ticker { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.oc-contract { font-size: 10px; color: var(--text-dim); margin-bottom: 4px; }
+.oc-pnl { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
 .oc-pnl.pos { color: var(--green); }
 .oc-pnl.neg { color: var(--red); }
-.oc-pnl-pct { font-size: 12px; font-weight: 600; text-align: right; }
+.oc-pnl-pct { font-size: 10px; font-weight: 600; text-align: right; }
 .oc-pnl-pct.pos { color: var(--green); }
 .oc-pnl-pct.neg { color: var(--red); }
-.oc-metas { display: flex; gap: 12px; }
-.oc-meta { font-size: 10px; color: var(--text-fade); }
+.oc-metas { display: flex; gap: 10px; }
+.oc-meta { font-size: 9px; color: var(--text-fade); }
 .oc-meta b { color: var(--text-dim); font-weight: 500; }
 
 /* ACTIVITY CARDS */
@@ -289,8 +289,12 @@ tr:hover td { background: var(--surface-2); }
       </div>
     </div>
     <div class="chart-container">
-      <svg id="chart-svg" viewBox="0 0 600 150" aria-label="Cumulative P&amp;L chart"></svg>
+      <svg id="chart-svg" viewBox="0 0 600 100" aria-label="Cumulative P&amp;L chart"></svg>
       <div class="chart-tooltip" id="chart-tip"></div>
+    </div>
+    <div style="margin-top:10px;border-top:1px solid var(--border-lt);padding-top:10px;">
+      <div style="font-size:9px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;color:var(--text-fade);margin-bottom:6px;">Individual Trades</div>
+      <svg id="bars-svg" viewBox="0 0 600 40" style="width:100%;display:block;"></svg>
     </div>
     <div class="period-summary" id="period-summary"></div>
   </div>
@@ -492,18 +496,18 @@ let chartPts = [];
 
 function renderChart() {
   const svg = document.getElementById('chart-svg');
-  const tip = document.getElementById('chart-tip');
+  const barsSvg = document.getElementById('bars-svg');
   const sumEl = document.getElementById('period-summary');
 
-  const W = 600, H = 150;
-  const PX = 6, CURVE_TOP = 18, CURVE_BOT = 110; // curve lives in y:18..110
-  const BAR_TOP = 116, BAR_BOT = 148;             // bars live below
+  const W = 600, H = 100;
+  const PX = 6, CURVE_TOP = 10, CURVE_BOT = 88;
   const CURVE_H = CURVE_BOT - CURVE_TOP;
 
   const trades = filteredTrades().sort((a, b) => new Date(a.closed_at) - new Date(b.closed_at));
 
   if (!trades.length) {
-    svg.innerHTML = '<text x="300" y="80" text-anchor="middle" fill="var(--text-fade)" font-size="12" font-family="DM Sans,sans-serif">No trades in this period</text>';
+    svg.innerHTML = '<text x="300" y="55" text-anchor="middle" fill="var(--text-fade)" font-size="11" font-family="DM Sans,sans-serif">No trades in this period</text>';
+    if (barsSvg) barsSvg.innerHTML = '';
     sumEl.innerHTML = '';
     chartPts = [];
     return;
@@ -533,28 +537,12 @@ function renderChart() {
   const finalVal = chartPts[n - 1].v;
   const lineColor = finalVal >= 0 ? 'var(--green)' : 'var(--red)';
 
-  // Trade bars
-  const barWidth = Math.max(2, Math.min(10, (W - PX * 2) / trades.length - 1.5));
-  const barMaxAbs = Math.max(...trades.map(t => Math.abs(parseFloat(t.pnl) || 0)), 1);
-  const barMidY = (BAR_TOP + BAR_BOT) / 2;
-  const barScale = (BAR_BOT - BAR_TOP) / 2 / barMaxAbs;
-
-  const bars = trades.map((t, idx) => {
-    const pnl = parseFloat(t.pnl) || 0;
-    const cx = sx(idx + 1);
-    const bh = Math.abs(pnl) * barScale;
-    const by = pnl >= 0 ? barMidY - bh : barMidY;
-    const col = pnl >= 0 ? 'var(--green)' : 'var(--red)';
-    return `<rect x="${(cx - barWidth/2).toFixed(1)}" y="${by.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${bh.toFixed(1)}" fill="${col}" opacity="0.7" rx="1"/>`;
-  }).join('');
-
-  // Date labels
-  const labelIdxs = n <= 4 ? chartPts.map((_,i) => i).filter(i=>chartPts[i].date) :
-    [1, Math.ceil(n/2), n-1].filter(i => i < n && chartPts[i].date);
+  // Date labels (tiny)
+  const labelIdxs = [1, Math.ceil(n/2), n-1].filter(i => i < n && chartPts[i].date);
   const dateLabels = labelIdxs.map(i => {
     const x = sx(i).toFixed(1);
     const anchor = i <= 1 ? 'start' : i === n-1 ? 'end' : 'middle';
-    return `<text x="${x}" y="${H-2}" text-anchor="${anchor}" fill="var(--text-fade)" font-size="9" font-family="DM Sans,sans-serif">${esc(fmtShortDate(chartPts[i].date))}</text>`;
+    return `<text x="${x}" y="${H-1}" text-anchor="${anchor}" fill="var(--text-fade)" font-size="8" font-family="DM Sans,sans-serif">${esc(fmtShortDate(chartPts[i].date))}</text>`;
   }).join('');
 
   svg.innerHTML = `
@@ -564,25 +552,33 @@ function renderChart() {
         <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
       </linearGradient>
     </defs>
-    <!-- Zero line for curve -->
     <line x1="${PX}" y1="${zeroY.toFixed(1)}" x2="${W-PX}" y2="${zeroY.toFixed(1)}" stroke="var(--border-lt)" stroke-width="1" stroke-dasharray="4 4"/>
-    <!-- Bar mid line -->
-    <line x1="${PX}" y1="${barMidY.toFixed(1)}" x2="${W-PX}" y2="${barMidY.toFixed(1)}" stroke="var(--border-lt)" stroke-width="1"/>
-    <!-- Subtle area + thin line -->
     <path d="${areaD}" fill="url(#ag)"/>
     <path d="${lineD}" fill="none" stroke="${lineColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <!-- Bars -->
-    ${bars}
-    <!-- Final dot + label -->
     <circle id="chart-dot" cx="${sx(n-1).toFixed(1)}" cy="${sy(finalVal).toFixed(1)}" r="2.5" fill="${lineColor}"/>
-    <text id="chart-val-lbl" x="${(sx(n-1)-7).toFixed(1)}" y="${(sy(finalVal)-8).toFixed(1)}" text-anchor="end" fill="${lineColor}" font-size="10" font-weight="500" font-family="DM Sans,sans-serif">${fmt$(Math.round(finalVal))}</text>
-    <!-- Crosshair (hidden) -->
+    <text id="chart-val-lbl" x="${Math.min(sx(n-1), W-PX-2).toFixed(1)}" y="${Math.max(sy(finalVal)-6, CURVE_TOP+8).toFixed(1)}" text-anchor="end" fill="${lineColor}" font-size="9" font-weight="500" font-family="DM Sans,sans-serif">${fmt$(Math.round(finalVal))}</text>
     <line id="crosshair" x1="0" y1="${CURVE_TOP}" x2="0" y2="${CURVE_BOT}" stroke="var(--text-fade)" stroke-width="1" stroke-dasharray="2 2" opacity="0"/>
-    <circle id="hover-dot" cx="0" cy="0" r="3.5" fill="var(--surface)" stroke="${lineColor}" stroke-width="1.5" opacity="0"/>
-    <!-- Date labels -->
+    <circle id="hover-dot" cx="0" cy="0" r="3" fill="var(--surface)" stroke="${lineColor}" stroke-width="1.5" opacity="0"/>
     ${dateLabels}
-    <!-- Invisible hover overlay -->
     <rect id="chart-hover-area" x="${PX}" y="${CURVE_TOP}" width="${W - PX*2}" height="${CURVE_H}" fill="transparent" style="cursor:crosshair"/>`;
+
+  // Separate bars SVG
+  if (barsSvg) {
+    const BW = 600, BH = 40, BMidY = BH / 2;
+    const barMaxAbs = Math.max(...trades.map(t => Math.abs(parseFloat(t.pnl) || 0)), 1);
+    const barScale = (BH * 0.44) / barMaxAbs;
+    const barWidth = Math.max(2, Math.min(10, (BW - PX * 2) / trades.length - 1.5));
+    const bsx = idx => PX + ((idx + 1) / Math.max(n - 1, 1)) * (BW - PX * 2);
+    const barRects = trades.map((t, idx) => {
+      const pnl = parseFloat(t.pnl) || 0;
+      const cx = bsx(idx);
+      const bh = Math.max(1, Math.abs(pnl) * barScale);
+      const by = pnl >= 0 ? BMidY - bh : BMidY;
+      const col = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+      return `<rect x="${(cx - barWidth/2).toFixed(1)}" y="${by.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${bh.toFixed(1)}" fill="${col}" opacity="0.65" rx="1"/>`;
+    }).join('');
+    barsSvg.innerHTML = `<line x1="${PX}" y1="${BMidY}" x2="${BW-PX}" y2="${BMidY}" stroke="var(--border-lt)" stroke-width="1"/>${barRects}`;
+  }
 
   // Period summary
   const wins = trades.filter(t => (parseFloat(t.pnl)||0) > 0).length;
@@ -593,7 +589,6 @@ function renderChart() {
     <span class="ps-item"><b>${trades.length}</b> trades</span>
     <span class="ps-item"><b>${wins}W / ${trades.length - wins}L</b></span>`;
 
-  // Bind hover after DOM is updated
   requestAnimationFrame(() => {
     const hoverArea = document.getElementById('chart-hover-area');
     if (!hoverArea) return;
@@ -609,7 +604,7 @@ function onChartHover(e) {
   const rect = svg.getBoundingClientRect();
   const svgW = rect.width;
   const W = 600, PX = 6;
-  const CURVE_TOP = 18, CURVE_BOT = 110, CURVE_H = CURVE_BOT - CURVE_TOP;
+  const CURVE_TOP = 10, CURVE_BOT = 88, CURVE_H = CURVE_BOT - CURVE_TOP;
 
   const mx = (e.clientX - rect.left) / svgW * W;
   const n = chartPts.length;
