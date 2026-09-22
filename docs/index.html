@@ -44,9 +44,8 @@
 body {
   font-family: 'DM Sans', system-ui, sans-serif;
   background: var(--bg); color: var(--text);
-  margin: 0; padding-inline: 36px; padding-block: 32px 56px;
+  margin: 0; padding-inline: 40px; padding-block: 32px 56px;
   -webkit-font-smoothing: antialiased; line-height: 1.5;
-  max-width: 1200px;
 }
 @media (max-width: 600px) { body { padding-inline: 16px; } }
 
@@ -546,7 +545,6 @@ function renderChart() {
   const zeroY = Math.min(Math.max(sy(0), CURVE_TOP), CURVE_BOT);
 
   const lineD = chartPts.map((p, j) => `${j===0?'M':'L'}${sx(j).toFixed(1)},${sy(p.v).toFixed(1)}`).join(' ');
-  const areaD = lineD + ` L${sx(n-1).toFixed(1)},${zeroY.toFixed(1)} L${sx(0).toFixed(1)},${zeroY.toFixed(1)}Z`;
 
   const finalVal = chartPts[n - 1].v;
   const lineColor = finalVal >= 0 ? 'var(--green)' : 'var(--red)';
@@ -560,14 +558,7 @@ function renderChart() {
   }).join('');
 
   svg.innerHTML = `
-    <defs>
-      <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${lineColor}" stop-opacity=".07"/>
-        <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
-    <line x1="${PX}" y1="${zeroY.toFixed(1)}" x2="${W-PX}" y2="${zeroY.toFixed(1)}" stroke="var(--border-lt)" stroke-width="1" stroke-dasharray="4 4"/>
-    <path d="${areaD}" fill="url(#ag)"/>
+    <line x1="${PX}" y1="${zeroY.toFixed(1)}" x2="${W-PX}" y2="${zeroY.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>
     <path d="${lineD}" fill="none" stroke="${lineColor}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
     <circle id="chart-dot" cx="${sx(n-1).toFixed(1)}" cy="${sy(finalVal).toFixed(1)}" r="2" fill="${lineColor}"/>
     <text id="chart-val-lbl" x="${Math.min(sx(n-1), W-PX-2).toFixed(1)}" y="${Math.max(sy(finalVal)-5, CURVE_TOP+7).toFixed(1)}" text-anchor="end" fill="${lineColor}" font-size="8" font-weight="500" font-family="DM Sans,sans-serif">${fmt$(Math.round(finalVal))}</text>
@@ -829,9 +820,9 @@ function renderPnlBars() {
   }).join('');
 
   svg.innerHTML = `
-    <line x1="${PX}" y1="${MID}" x2="${W-PX}" y2="${MID}" stroke="var(--border)" stroke-width="1"/>
+    <line x1="${PX}" y1="${MID}" x2="${W-PX}" y2="${MID}" stroke="var(--border)" stroke-width="0.5"/>
     ${bars}
-    <line id="pnl-xhair" x1="0" y1="0" x2="0" y2="${H}" stroke="var(--text-dim)" stroke-width="1" stroke-dasharray="2 2" opacity="0"/>`;
+    <line id="pnl-xhair" x1="0" y1="0" x2="0" y2="${H}" stroke="var(--text-dim)" stroke-width="1" opacity="0"/>`;
 
   // Bind events
   svg.querySelectorAll('.pnl-bar-hit').forEach(el => {
