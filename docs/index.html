@@ -224,6 +224,9 @@ body {
 .deb-block.meta  .deb-lbl { color: var(--text-fade); }
 .deb-txt { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
 .conf-chip { display: inline-flex; align-items: center; background: var(--blue); color: #fff; border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 600; margin-top: 6px; }
+.daily-badge { display: inline-flex; align-items: center; gap: 3px; background: #FFF7ED; color: #C2610C; border-radius: 4px; padding: 1px 6px; font-size: 9px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; margin-left: 6px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .daily-badge { background: #2A1A08; color: #E8893A; } }
+:root[data-theme="dark"] .daily-badge { background: #2A1A08; color: #E8893A; }
 
 /* TRADE HISTORY TABLE */
 .tbl-wrap { overflow-x: auto; margin-bottom: 28px; border: 1px solid var(--border); border-radius: var(--r); }
@@ -663,9 +666,10 @@ function renderOpen() {
     const prem = s.premium_paid ? `<div class="oc-meta"><b>Premium</b> $${parseFloat(s.premium_paid).toFixed(2)}</div>` : '';
     const pnlStr = cv > 0 ? fmt$(Math.round(pnl)) : 'Pending';
     const pctStr = cv > 0 ? (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%' : '';
+    const isDailyPick = (s.catalyst || '').includes('Daily Suggestion');
     return `<div class="open-card">
       <div class="oc-top">
-        <div class="oc-ticker">${esc(s.ticker || s.underlying || '?')}</div>
+        <div class="oc-ticker">${esc(s.ticker || s.underlying || '?')}${isDailyPick ? '<span class="daily-badge">Daily Pick</span>' : ''}</div>
         <div>
           <div class="oc-pnl ${cls}">${pnlStr}</div>
           ${pctStr ? `<div class="oc-pnl-pct ${cls}">${pctStr}</div>` : ''}
@@ -697,18 +701,24 @@ function renderActivity() {
     const reason = (t.exit_reason || '').substring(0, 90);
     const hasBull = !!t.bull_case, hasBear = !!t.bear_case;
     const hasJudge = !!(t.judge_verdict || t.judge_reasoning);
+    const isDailyPick = (t.catalyst || '').includes('Daily Suggestion');
     let debate = '';
 
     if (hasBull || hasBear || hasJudge) {
+      const verdictColor = t.judge_verdict === 'BUY' ? 'var(--green)' : t.judge_verdict === 'SKIP' ? 'var(--red)' : 'var(--blue)';
+      const judgeText = [
+        t.judge_verdict ? `<b style="color:${verdictColor}">${esc(t.judge_verdict)}</b>` : '',
+        t.judge_reasoning ? esc(t.judge_reasoning) : '',
+      ].filter(Boolean).join(' â€” ');
       debate = `<div class="deb-row">
           ${hasBull ? `<div class="deb-block bull"><div class="deb-lbl">Bull Agent</div><div class="deb-txt">${esc(t.bull_case)}</div></div>` : ''}
           ${hasBear ? `<div class="deb-block bear"><div class="deb-lbl">Bear Agent</div><div class="deb-txt">${esc(t.bear_case)}</div></div>` : ''}
         </div>
         ${hasJudge ? `<div class="deb-block judge deb-full">
           <div class="deb-lbl">Judge Agent</div>
-          <div class="deb-txt">${esc(t.judge_verdict || t.judge_reasoning || '')}</div>
+          <div class="deb-txt">${judgeText || '--'}</div>
           ${t.judge_confidence != null ? `<div class="conf-chip">Confidence ${esc(t.judge_confidence)}/10</div>` : ''}
-          ${t.overruled_objection ? `<div class="deb-txt" style="margin-top:8px;font-size:11px"><b style="color:var(--red)">Bear objection overruled:</b> ${esc(t.overruled_objection)}</div>` : ''}
+          ${t.overruled_objection && t.overruled_objection !== 'null' ? `<div class="deb-txt" style="margin-top:8px;font-size:11px"><b style="color:var(--red)">Bear objection overruled:</b> ${esc(t.overruled_objection)}</div>` : ''}
         </div>` : ''}`;
     } else {
       const score = t.score != null ? parseFloat(t.score).toFixed(1) : null;
@@ -720,15 +730,14 @@ function renderActivity() {
           <div class="deb-block meta"><div class="deb-lbl">Exit Reason</div>
             <div class="deb-txt">${esc(t.exit_reason || '--')}</div>
           </div>
-        </div>
-        <div style="font-size:11px;color:var(--text-fade);margin-top:2px;font-style:italic">Bull/Bear/Judge debate available after agent rollout</div>`;
+        </div>`;
     }
 
     const pctStr = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
     return `<div class="act-card" id="ac${idx}">
       <div class="act-head" onclick="toggleAc(${idx})">
         <div class="act-stripe ${sc}"></div>
-        <div class="act-ticker">${esc(t.ticker || t.underlying || '?')}</div>
+        <div class="act-ticker">${esc(t.ticker || t.underlying || '?')}${isDailyPick ? '<span class="daily-badge">Daily Pick</span>' : ''}</div>
         <div class="act-info">
           <div class="act-contract">${esc(contract)}</div>
           <div class="act-reason">${esc(reason)}</div>
