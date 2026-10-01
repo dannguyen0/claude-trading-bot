@@ -188,6 +188,7 @@ body {
 .act-stripe { width: 2px; height: 28px; border-radius: 1px; flex-shrink: 0; }
 .act-stripe.win  { background: var(--green); }
 .act-stripe.loss { background: var(--red); }
+.act-stripe.skip { background: var(--border); }
 
 .act-ticker { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; min-width: 50px; color: var(--text); }
 .act-info { flex: 1; min-width: 0; }
@@ -376,7 +377,7 @@ tr:hover td { background: var(--surface-2); }
 <script>
 const API = 'https://sayhgm8sb2.execute-api.us-east-1.amazonaws.com';
 
-let S = { trades: [], open: [], analytics: {}, tf: 'YTD', actShown: 8 };
+let S = { trades: [], open: [], analytics: {}, skips: [], tf: 'YTD', actShown: 8 };
 
 // â”€â”€ Fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function apiFetch(action) {
@@ -395,6 +396,7 @@ async function loadAll() {
     S.open      = Array.isArray(spreads) ? spreads : [];
     S.analytics = analytics || {};
     S.trades    = S.analytics.recent_trades || [];
+    S.skips     = S.analytics.recent_skips  || [];
     render();
     document.getElementById('last-upd').textContent =
       'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -685,13 +687,46 @@ function renderOpen() {
 function renderActivity() {
   const list = document.getElementById('act-list');
   const moreBtn = document.getElementById('act-more');
-  const sorted = [...S.trades].sort((a, b) => new Date(b.closed_at || 0) - new Date(a.closed_at || 0));
-  document.getElementById('act-count').textContent = sorted.length ? sorted.length + ' trades' : '';
+  // Merge closed trades + debate skips into one feed, newest first
+  const tradeItems = S.trades.map(t => ({ ...t, _feed: 'trade', _ts: t.closed_at || '' }));
+  const skipItems  = S.skips.map(s  => ({ ...s,  _feed: 'skip',  _ts: s.timestamp || '' }));
+  const sorted = [...tradeItems, ...skipItems].sort((a, b) => new Date(b._ts || 0) - new Date(a._ts || 0));
+  document.getElementById('act-count').textContent = sorted.length ? sorted.length + ' events' : '';
 
   const shown = sorted.slice(0, S.actShown);
   if (!shown.length) { list.innerHTML = '<div class="empty">No trades yet</div>'; moreBtn.classList.add('hidden'); return; }
 
   list.innerHTML = shown.map((t, idx) => {
+    // â”€â”€ Debate-skip card (no trade executed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    if (t._feed === 'skip') {
+      const debatePanel = `<div class="deb-row">
+          ${t.bull_case ? `<div class="deb-block bull"><div class="deb-lbl">Bull Agent</div><div class="deb-txt">${esc(t.bull_case)}</div></div>` : ''}
+          ${t.bear_case ? `<div class="deb-block bear"><div class="deb-lbl">Bear Agent</div><div class="deb-txt">${esc(t.bear_case)}</div></div>` : ''}
+        </div>
+        <div class="deb-block judge deb-full">
+          <div class="deb-lbl">Judge Agent â€” SKIP</div>
+          <div class="deb-txt" style="color:var(--red)">${esc(t.judge_reasoning || 'No reasoning recorded')}</div>
+          ${t.judge_confidence != null ? `<div class="conf-chip" style="background:var(--text-dim)">Confidence ${esc(t.judge_confidence)}/10</div>` : ''}
+        </div>`;
+      return `<div class="act-card" id="ac${idx}">
+        <div class="act-head" onclick="toggleAc(${idx})">
+          <div class="act-stripe skip"></div>
+          <div class="act-ticker" style="color:var(--text-dim)">${esc(t.ticker || '?')}</div>
+          <div class="act-info">
+            <div class="act-contract" style="color:var(--text-fade)">Debated â€” Judge blocked entry</div>
+            <div class="act-reason">${esc((t.rationale || '').substring(0, 90))}</div>
+          </div>
+          <div class="act-right">
+            <div class="act-pnl" style="color:var(--text-fade)">No trade</div>
+            <div class="act-date">${fmtDate(t.timestamp)}</div>
+          </div>
+          <div class="act-chevron">&#9660;</div>
+        </div>
+        <div class="debate-panel">${debatePanel}</div>
+      </div>`;
+    }
+
+    // â”€â”€ Closed trade card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const pnl = parseFloat(t.pnl) || 0;
     const pct = optionPct(t);
     const isWin = pnl > 0;
