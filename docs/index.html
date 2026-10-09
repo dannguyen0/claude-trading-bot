@@ -240,8 +240,7 @@ tr:hover td { background: var(--surface-2); }
 th.sortable { cursor: pointer; user-select: none; }
 th.sortable:hover { color: var(--text-dim); }
 th.sort-active { color: var(--text); }
-.sort-ind { display: inline-block; margin-left: 3px; font-size: 8px; opacity: 0.4; pointer-events: none; }
-th.sort-active .sort-ind { opacity: 1; }
+.sort-ind { display: inline-block; margin-left: 4px; vertical-align: middle; pointer-events: none; line-height: 1; }
 .t-ticker { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text); font-size: 11px; }
 .t-dir { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; letter-spacing: 0.3px; }
 .t-dir.call { background: var(--green-bg); color: var(--green); }
@@ -373,16 +372,16 @@ th.sort-active .sort-ind { opacity: 1; }
   <table>
     <thead>
       <tr>
-        <th class="sortable" data-col="ticker" onclick="sortHistory('ticker')">Ticker <span class="sort-ind">â†•</span></th>
-        <th class="sortable" data-col="strategy" onclick="sortHistory('strategy')">Strategy <span class="sort-ind">â†•</span></th>
-        <th class="sortable" data-col="type" onclick="sortHistory('type')">Type <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="ticker" onclick="sortHistory('ticker')">Ticker <span class="sort-ind"></span></th>
+        <th class="sortable" data-col="strategy" onclick="sortHistory('strategy')">Strategy <span class="sort-ind"></span></th>
+        <th class="sortable" data-col="type" onclick="sortHistory('type')">Type <span class="sort-ind"></span></th>
         <th>Contract</th>
-        <th class="sortable" data-col="score" onclick="sortHistory('score')">Score <span class="sort-ind">â†•</span></th>
-        <th class="sortable" data-col="opened_at" onclick="sortHistory('opened_at')">Opened <span class="sort-ind">â†•</span></th>
-        <th class="sortable sort-active" data-col="closed_at" onclick="sortHistory('closed_at')">Closed <span class="sort-ind">â–¼</span></th>
-        <th class="sortable" data-col="pnl" onclick="sortHistory('pnl')">P&amp;L $ <span class="sort-ind">â†•</span></th>
-        <th class="sortable" data-col="pnl_pct" onclick="sortHistory('pnl_pct')">P&amp;L % <span class="sort-ind">â†•</span></th>
-        <th class="sortable" data-col="exit_reason" onclick="sortHistory('exit_reason')">Exit Reason <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="score" onclick="sortHistory('score')">Score <span class="sort-ind"></span></th>
+        <th class="sortable" data-col="opened_at" onclick="sortHistory('opened_at')">Opened <span class="sort-ind"></span></th>
+        <th class="sortable sort-active" data-col="closed_at" onclick="sortHistory('closed_at')">Closed <span class="sort-ind"></span></th>
+        <th class="sortable" data-col="pnl" onclick="sortHistory('pnl')">P&amp;L $ <span class="sort-ind"></span></th>
+        <th class="sortable" data-col="pnl_pct" onclick="sortHistory('pnl_pct')">P&amp;L % <span class="sort-ind"></span></th>
+        <th class="sortable" data-col="exit_reason" onclick="sortHistory('exit_reason')">Exit Reason <span class="sort-ind"></span></th>
       </tr>
     </thead>
     <tbody id="hist-body">
@@ -402,6 +401,14 @@ th.sort-active .sort-ind { opacity: 1; }
 
 <script>
 const API = 'https://sayhgm8sb2.execute-api.us-east-1.amazonaws.com';
+
+// Sort icons: two small triangles (both=unsorted, asc=up, desc=down)
+const _si = (topOp, botOp) =>
+  `<svg width="8" height="10" viewBox="0 0 8 10" fill="none" style="vertical-align:-1px;display:inline-block">` +
+  `<path d="M4,1 L1,4 L7,4 Z" fill="currentColor" opacity="${topOp}"/>` +
+  `<path d="M4,9 L1,6 L7,6 Z" fill="currentColor" opacity="${botOp}"/>` +
+  `</svg>`;
+const SORT_ICON = { both: _si('0.3','0.3'), asc: _si('1','0.15'), desc: _si('0.15','1') };
 
 let S = { trades: [], open: [], analytics: {}, skips: [], account: {}, portfolio: {}, tf: 'YTD', actShown: 8, actFilter: 'all', histSort: { col: 'closed_at', dir: -1 } };
 
@@ -909,7 +916,7 @@ function renderHistory() {
     const active = th.dataset.col === S.histSort.col;
     th.classList.toggle('sort-active', active);
     const ind = th.querySelector('.sort-ind');
-    if (ind) ind.textContent = active ? (S.histSort.dir === 1 ? 'â–²' : 'â–¼') : 'â†•';
+    if (ind) ind.innerHTML = active ? (S.histSort.dir === 1 ? SORT_ICON.asc : SORT_ICON.desc) : SORT_ICON.both;
   });
 
   const rows = [...S.trades].sort((a, b) => {
