@@ -240,7 +240,7 @@ tr:hover td { background: var(--surface-2); }
 th.sortable { cursor: pointer; user-select: none; }
 th.sortable:hover { color: var(--text-dim); }
 th.sort-active { color: var(--text); }
-.sort-ind { display: inline-block; margin-left: 3px; font-size: 8px; opacity: 0.4; }
+.sort-ind { display: inline-block; margin-left: 3px; font-size: 8px; opacity: 0.4; pointer-events: none; }
 th.sort-active .sort-ind { opacity: 1; }
 .t-ticker { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text); font-size: 11px; }
 .t-dir { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; letter-spacing: 0.3px; }
@@ -303,7 +303,6 @@ th.sort-active .sort-ind { opacity: 1; }
   <div class="kpi"><div class="kpi-lbl">Avg Loss</div><div class="kpi-val" id="k-avgl">--</div><div class="kpi-sub" id="k-avgl-sub"></div></div>
   <div class="kpi"><div class="kpi-lbl">Expectancy</div><div class="kpi-val" id="k-exp">--</div><div class="kpi-sub" id="k-exp-sub"></div></div>
   <div class="kpi"><div class="kpi-lbl">Account Value</div><div class="kpi-val" id="k-equity">--</div><div class="kpi-sub" id="k-equity-sub">paper account</div></div>
-  <div class="kpi"><div class="kpi-lbl">Buying Power</div><div class="kpi-val" id="k-bp">--</div><div class="kpi-sub" id="k-bp-sub">available</div></div>
 </div>
 
 <!-- MID ROW: chart + open positions -->
@@ -534,9 +533,7 @@ function renderKPIs() {
   setKpi('k-exp', fmt$(Math.round(exp)), exp >= 0 ? 'pos' : 'neg', 'per trade');
 
   const equity = parseFloat(S.account.equity) || 0;
-  const bp     = parseFloat(S.account.buying_power) || 0;
   if (equity > 0) setKpi('k-equity', '$' + equity.toLocaleString('en-US', { maximumFractionDigits: 0 }), '', 'paper account');
-  if (bp > 0)     setKpi('k-bp',     '$' + bp.toLocaleString('en-US', { maximumFractionDigits: 0 }), '', 'available');
 }
 
 function setKpi(id, val, cls, sub) {
@@ -623,8 +620,8 @@ function renderChart() {
   }).join('');
 
   svg.innerHTML = `
-    <line x1="${PX}" y1="${startY}" x2="${W-PX}" y2="${startY}" stroke="var(--border)" stroke-width="1" stroke-dasharray="2 2"/>
-    <path d="${lineD}" fill="none" stroke="${lineColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="${PX}" y1="${startY}" x2="${W-PX}" y2="${startY}" stroke="var(--border-lt)" stroke-width="0.5" stroke-dasharray="3 3"/>
+    <path d="${lineD}" fill="none" stroke="${lineColor}" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
     <circle id="chart-dot" cx="${sx(n-1).toFixed(1)}" cy="${sy(finalV).toFixed(1)}" r="2" fill="${lineColor}"/>
     <text id="chart-val-lbl" x="${Math.min(sx(n-1), W-PX-2).toFixed(1)}" y="${Math.max(sy(finalV)-5, CURVE_TOP+7).toFixed(1)}" text-anchor="end" fill="${lineColor}" font-size="8" font-weight="500" font-family="DM Sans,sans-serif">$${Math.round(finalV).toLocaleString()}</text>
     <line id="crosshair" x1="0" y1="${CURVE_TOP}" x2="0" y2="${CURVE_BOT}" stroke="var(--text-fade)" stroke-width="1" stroke-dasharray="2 2" opacity="0"/>
@@ -908,7 +905,7 @@ function renderHistory() {
     const isDP  = (t.catalyst || '').includes('Daily Suggestion');
     const strat = isDP
       ? '<span class="daily-badge">Daily Pick</span>'
-      : '<span style="color:var(--text-fade);font-size:10px;font-weight:500;letter-spacing:0.2px">Bot</span>';
+      : '<span style="color:var(--text-fade);font-size:10px;font-weight:500;letter-spacing:0.2px">Algo</span>';
     const pnl    = parseFloat(t.pnl) || 0;
     const pct    = optionPct(t);
     const cls    = pnl >= 0 ? 'pos' : 'neg';
