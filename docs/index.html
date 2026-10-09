@@ -960,7 +960,7 @@ function renderPnlBars() {
 
   if (!all.length) { svg.innerHTML = '<text x="300" y="40" text-anchor="middle" fill="var(--text-fade)" font-size="10" font-family="DM Sans,sans-serif">No trades in this period</text>'; return; }
 
-  const W = 600, BAR_H = 68, MID = BAR_H / 2, PX = 4, TOTAL_H = 95;
+  const W = 600, BAR_H = 70, MID = BAR_H / 2, PX = 4, TOTAL_H = 82;
   const maxAbs = Math.max(...all.map(t => Math.abs(parseFloat(t.pnl) || 0)), 1);
   const scale = (BAR_H * 0.44) / maxAbs;
   const n = all.length;
@@ -970,7 +970,6 @@ function renderPnlBars() {
 
   const cx = idx => PX + gap * idx + gap / 2;
 
-  // Update viewBox to accommodate date labels below
   svg.setAttribute('viewBox', `0 0 ${W} ${TOTAL_H}`);
 
   const bars = all.map((t, idx) => {
@@ -979,19 +978,32 @@ function renderPnlBars() {
     const x = cx(idx);
     const col = pnl >= 0 ? 'var(--green)' : 'var(--red)';
     const by = pnl >= 0 ? MID - bh : MID;
-    const dateStr = t.closed_at ? new Date(t.closed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-    // Date label: above wins, below losses â€” rotated to fit narrow bars
-    const lblY = pnl >= 0 ? by - 2 : by + bh + 2;
-    const lblAnchor = pnl >= 0 ? 'end' : 'start';
-    const dateLabel = dateStr ? `<text x="${x.toFixed(1)}" y="${lblY.toFixed(1)}" transform="rotate(-90,${x.toFixed(1)},${lblY.toFixed(1)})" text-anchor="${lblAnchor}" fill="${col}" font-size="4.5" font-family="DM Sans,sans-serif" opacity="0.75">${esc(dateStr)}</text>` : '';
     return `<rect class="pnl-bar" data-idx="${idx}" x="${(x - barW/2).toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" fill="${col}" opacity="0.8" rx="1"/>
-      <rect class="pnl-bar-hit" data-idx="${idx}" x="${(x - Math.max(barW, 8)/2).toFixed(1)}" y="0" width="${Math.max(barW, 8).toFixed(1)}" height="${TOTAL_H}" fill="transparent"/>
-      ${dateLabel}`;
+      <rect class="pnl-bar-hit" data-idx="${idx}" x="${(x - Math.max(barW, 8)/2).toFixed(1)}" y="0" width="${Math.max(barW, 8).toFixed(1)}" height="${BAR_H}" fill="transparent"/>`;
   }).join('');
+
+  // X-axis: month labels at first occurrence of each month
+  const seenMonths = new Set();
+  const monthLabelEls = [];
+  all.forEach((t, idx) => {
+    if (!t.closed_at) return;
+    const d = new Date(t.closed_at);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if (!seenMonths.has(key)) {
+      seenMonths.add(key);
+      const x = cx(idx);
+      const anchor = x < PX + 22 ? 'start' : x > W - PX - 22 ? 'end' : 'middle';
+      const lbl = d.toLocaleDateString('en-US', { month: 'short' });
+      monthLabelEls.push(`<text x="${x.toFixed(1)}" y="${TOTAL_H - 1}" text-anchor="${anchor}" fill="var(--text-fade)" font-size="6" font-family="DM Sans,sans-serif">${esc(lbl)}</text>`);
+    }
+  });
+  const monthLabels = monthLabelEls.join('');
 
   svg.innerHTML = `
     <line x1="${PX}" y1="${MID}" x2="${W-PX}" y2="${MID}" stroke="var(--border)" stroke-width="0.5"/>
+    <line x1="${PX}" y1="${BAR_H}" x2="${W-PX}" y2="${BAR_H}" stroke="var(--border-lt)" stroke-width="0.5"/>
     ${bars}
+    ${monthLabels}
     <line id="pnl-xhair" x1="0" y1="0" x2="0" y2="${BAR_H}" stroke="var(--text-dim)" stroke-width="1" opacity="0"/>`;
 
   // Bind events
