@@ -352,9 +352,9 @@ th.sort-active .sort-ind { opacity: 1; }
   <div class="sec-title">Recent Activity</div>
   <div style="display:flex;align-items:center;gap:10px;">
     <div class="act-filter" id="act-filter">
-      <button class="af-btn active" data-f="all">All</button>
-      <button class="af-btn" data-f="trade">Trades</button>
-      <button class="af-btn" data-f="skip">Skips</button>
+      <button class="af-btn active" data-f="all" onclick="setActFilter('all')">All</button>
+      <button class="af-btn" data-f="trade" onclick="setActFilter('trade')">Trades</button>
+      <button class="af-btn" data-f="skip" onclick="setActFilter('skip')">Skips</button>
     </div>
     <div class="sec-count" id="act-count"></div>
   </div>
@@ -373,16 +373,16 @@ th.sort-active .sort-ind { opacity: 1; }
   <table>
     <thead>
       <tr>
-        <th class="sortable" data-col="ticker">Ticker <span class="sort-ind">â†•</span></th>
-        <th class="sortable" data-col="strategy">Strategy <span class="sort-ind">â†•</span></th>
-        <th class="sortable" data-col="type">Type <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="ticker" onclick="sortHistory('ticker')">Ticker <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="strategy" onclick="sortHistory('strategy')">Strategy <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="type" onclick="sortHistory('type')">Type <span class="sort-ind">â†•</span></th>
         <th>Contract</th>
-        <th class="sortable" data-col="score">Score <span class="sort-ind">â†•</span></th>
-        <th class="sortable" data-col="opened_at">Opened <span class="sort-ind">â†•</span></th>
-        <th class="sortable sort-active" data-col="closed_at">Closed <span class="sort-ind">â–¼</span></th>
-        <th class="sortable" data-col="pnl">P&amp;L $ <span class="sort-ind">â†•</span></th>
-        <th class="sortable" data-col="pnl_pct">P&amp;L % <span class="sort-ind">â†•</span></th>
-        <th class="sortable" data-col="exit_reason">Exit Reason <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="score" onclick="sortHistory('score')">Score <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="opened_at" onclick="sortHistory('opened_at')">Opened <span class="sort-ind">â†•</span></th>
+        <th class="sortable sort-active" data-col="closed_at" onclick="sortHistory('closed_at')">Closed <span class="sort-ind">â–¼</span></th>
+        <th class="sortable" data-col="pnl" onclick="sortHistory('pnl')">P&amp;L $ <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="pnl_pct" onclick="sortHistory('pnl_pct')">P&amp;L % <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="exit_reason" onclick="sortHistory('exit_reason')">Exit Reason <span class="sort-ind">â†•</span></th>
       </tr>
     </thead>
     <tbody id="hist-body">
@@ -611,19 +611,37 @@ function renderChart() {
   const lineColor = change >= 0 ? 'var(--green)' : 'var(--red)';
   const startY  = sy(startV).toFixed(1);
 
-  // Date labels
-  const labelIdxs = [0, Math.ceil(n / 2), n - 1];
-  const dateLabels = labelIdxs.map(i => {
-    const x = sx(i).toFixed(1);
-    const anchor = i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle';
-    return `<text x="${x}" y="${H-1}" text-anchor="${anchor}" fill="var(--text-fade)" font-size="6.5" font-family="DM Sans,sans-serif">${esc(fmtShortDate(chartPts[i].date))}</text>`;
-  }).join('');
+  // Generate x-axis labels: monthly for long periods, weekly/daily for shorter
+  const spanDays = (new Date(chartPts[n-1].date) - new Date(chartPts[0].date)) / 86400000;
+  const seenAxisKeys = new Set();
+  const axisLabelEls = [];
+  chartPts.forEach((p, i) => {
+    const d = new Date(p.date);
+    let key, lbl;
+    if (spanDays <= 8) {
+      key = d.toDateString();
+      lbl = d.toLocaleDateString('en-US', { weekday: 'short' });
+    } else if (spanDays <= 40) {
+      key = Math.floor(d.getTime() / (7 * 86400000));
+      lbl = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } else {
+      key = `${d.getFullYear()}-${d.getMonth()}`;
+      lbl = d.toLocaleDateString('en-US', { month: 'short' });
+    }
+    if (!seenAxisKeys.has(key)) {
+      seenAxisKeys.add(key);
+      const x = sx(i);
+      const anchor = x < PX + 22 ? 'start' : x > W - PX - 22 ? 'end' : 'middle';
+      axisLabelEls.push(`<text x="${x.toFixed(1)}" y="${H-1}" text-anchor="${anchor}" fill="var(--text-fade)" font-size="6" font-family="DM Sans,sans-serif">${esc(lbl)}</text>`);
+    }
+  });
+  const dateLabels = axisLabelEls.join('');
 
   svg.innerHTML = `
     <line x1="${PX}" y1="${startY}" x2="${W-PX}" y2="${startY}" stroke="var(--border-lt)" stroke-width="0.5" stroke-dasharray="3 3"/>
     <path d="${lineD}" fill="none" stroke="${lineColor}" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
     <circle id="chart-dot" cx="${sx(n-1).toFixed(1)}" cy="${sy(finalV).toFixed(1)}" r="2" fill="${lineColor}"/>
-    <text id="chart-val-lbl" x="${Math.min(sx(n-1), W-PX-2).toFixed(1)}" y="${Math.max(sy(finalV)-5, CURVE_TOP+7).toFixed(1)}" text-anchor="end" fill="${lineColor}" font-size="8" font-weight="500" font-family="DM Sans,sans-serif">$${Math.round(finalV).toLocaleString()}</text>
+    <text id="chart-val-lbl" x="${(Math.min(sx(n-1), W-PX-3) - 4).toFixed(1)}" y="${Math.max(sy(finalV)-4, CURVE_TOP+6).toFixed(1)}" text-anchor="end" fill="${lineColor}" font-size="6" font-weight="600" font-family="DM Sans,sans-serif">$${Math.round(finalV).toLocaleString()}</text>
     <line id="crosshair" x1="0" y1="${CURVE_TOP}" x2="0" y2="${CURVE_BOT}" stroke="var(--text-fade)" stroke-width="1" stroke-dasharray="2 2" opacity="0"/>
     <circle id="hover-dot" cx="0" cy="0" r="2.5" fill="var(--surface)" stroke="${lineColor}" stroke-width="1" opacity="0"/>
     ${dateLabels}
@@ -942,9 +960,9 @@ function renderPnlBars() {
 
   if (!all.length) { svg.innerHTML = '<text x="300" y="40" text-anchor="middle" fill="var(--text-fade)" font-size="10" font-family="DM Sans,sans-serif">No trades in this period</text>'; return; }
 
-  const W = 600, H = 70, MID = H / 2, PX = 4;
+  const W = 600, BAR_H = 68, MID = BAR_H / 2, PX = 4, TOTAL_H = 95;
   const maxAbs = Math.max(...all.map(t => Math.abs(parseFloat(t.pnl) || 0)), 1);
-  const scale = (H * 0.44) / maxAbs;
+  const scale = (BAR_H * 0.44) / maxAbs;
   const n = all.length;
   const totalW = W - PX * 2;
   const barW = Math.max(1.5, Math.min(5, totalW / n - 1.5));
@@ -952,20 +970,29 @@ function renderPnlBars() {
 
   const cx = idx => PX + gap * idx + gap / 2;
 
+  // Update viewBox to accommodate date labels below
+  svg.setAttribute('viewBox', `0 0 ${W} ${TOTAL_H}`);
+
   const bars = all.map((t, idx) => {
     const pnl = parseFloat(t.pnl) || 0;
     const bh = Math.max(2, Math.abs(pnl) * scale);
     const x = cx(idx);
     const col = pnl >= 0 ? 'var(--green)' : 'var(--red)';
     const by = pnl >= 0 ? MID - bh : MID;
+    const dateStr = t.closed_at ? new Date(t.closed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+    // Date label: above wins, below losses â€” rotated to fit narrow bars
+    const lblY = pnl >= 0 ? by - 2 : by + bh + 2;
+    const lblAnchor = pnl >= 0 ? 'end' : 'start';
+    const dateLabel = dateStr ? `<text x="${x.toFixed(1)}" y="${lblY.toFixed(1)}" transform="rotate(-90,${x.toFixed(1)},${lblY.toFixed(1)})" text-anchor="${lblAnchor}" fill="${col}" font-size="4.5" font-family="DM Sans,sans-serif" opacity="0.75">${esc(dateStr)}</text>` : '';
     return `<rect class="pnl-bar" data-idx="${idx}" x="${(x - barW/2).toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" fill="${col}" opacity="0.8" rx="1"/>
-      <rect class="pnl-bar-hit" data-idx="${idx}" x="${(x - Math.max(barW, 8)/2).toFixed(1)}" y="0" width="${Math.max(barW, 8).toFixed(1)}" height="${H}" fill="transparent"/>`;
+      <rect class="pnl-bar-hit" data-idx="${idx}" x="${(x - Math.max(barW, 8)/2).toFixed(1)}" y="0" width="${Math.max(barW, 8).toFixed(1)}" height="${TOTAL_H}" fill="transparent"/>
+      ${dateLabel}`;
   }).join('');
 
   svg.innerHTML = `
     <line x1="${PX}" y1="${MID}" x2="${W-PX}" y2="${MID}" stroke="var(--border)" stroke-width="0.5"/>
     ${bars}
-    <line id="pnl-xhair" x1="0" y1="0" x2="0" y2="${H}" stroke="var(--text-dim)" stroke-width="1" opacity="0"/>`;
+    <line id="pnl-xhair" x1="0" y1="0" x2="0" y2="${BAR_H}" stroke="var(--text-dim)" stroke-width="1" opacity="0"/>`;
 
   // Bind events
   svg.querySelectorAll('.pnl-bar-hit').forEach(el => {
@@ -1055,29 +1082,24 @@ document.querySelectorAll('.tf-btn').forEach(btn => btn.addEventListener('click'
 document.getElementById('act-more').addEventListener('click', () => { S.actShown += 15; renderActivity(); });
 document.getElementById('refresh-btn').addEventListener('click', loadAll);
 
-document.querySelectorAll('th[data-col]').forEach(th => {
-  th.addEventListener('click', () => {
-    const col = th.dataset.col;
-    if (S.histSort.col === col) {
-      S.histSort.dir *= -1;
-    } else {
-      S.histSort.col = col;
-      // Numeric/date cols default descending (biggest first); text cols ascending
-      S.histSort.dir = ['score','pnl','pnl_pct','closed_at','opened_at'].includes(col) ? -1 : 1;
-    }
-    renderHistory();
-  });
-});
+function sortHistory(col) {
+  if (S.histSort.col === col) {
+    S.histSort.dir *= -1;
+  } else {
+    S.histSort.col = col;
+    S.histSort.dir = ['score','pnl','pnl_pct','closed_at','opened_at'].includes(col) ? -1 : 1;
+  }
+  renderHistory();
+}
 
-document.getElementById('act-filter').addEventListener('click', e => {
-  const btn = e.target.closest('.af-btn');
-  if (!btn) return;
-  S.actFilter = btn.dataset.f;
+function setActFilter(f) {
+  S.actFilter = f;
   S.actShown = 8;
   document.querySelectorAll('.af-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  const active = document.querySelector(`.af-btn[data-f="${f}"]`);
+  if (active) active.classList.add('active');
   renderActivity();
-});
+}
 
 loadAll();
 </script>
