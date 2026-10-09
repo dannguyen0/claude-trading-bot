@@ -237,6 +237,11 @@ th { padding: 9px 14px; text-align: left; font-size: 9px; font-weight: 600; lett
 td { padding: 9px 14px; border-bottom: 1px solid var(--border-lt); font-variant-numeric: tabular-nums; vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: var(--surface-2); }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--text-dim); }
+th.sort-active { color: var(--text); }
+.sort-ind { display: inline-block; margin-left: 3px; font-size: 8px; opacity: 0.4; }
+th.sort-active .sort-ind { opacity: 1; }
 .t-ticker { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text); font-size: 11px; }
 .t-dir { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 700; letter-spacing: 0.3px; }
 .t-dir.call { background: var(--green-bg); color: var(--green); }
@@ -369,19 +374,20 @@ tr:hover td { background: var(--surface-2); }
   <table>
     <thead>
       <tr>
-        <th>Ticker</th>
-        <th>Type</th>
+        <th class="sortable" data-col="ticker">Ticker <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="strategy">Strategy <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="type">Type <span class="sort-ind">â†•</span></th>
         <th>Contract</th>
-        <th>Score</th>
-        <th>Opened</th>
-        <th>Closed</th>
-        <th>P&amp;L $</th>
-        <th>P&amp;L %</th>
-        <th>Exit Reason</th>
+        <th class="sortable" data-col="score">Score <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="opened_at">Opened <span class="sort-ind">â†•</span></th>
+        <th class="sortable sort-active" data-col="closed_at">Closed <span class="sort-ind">â–¼</span></th>
+        <th class="sortable" data-col="pnl">P&amp;L $ <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="pnl_pct">P&amp;L % <span class="sort-ind">â†•</span></th>
+        <th class="sortable" data-col="exit_reason">Exit Reason <span class="sort-ind">â†•</span></th>
       </tr>
     </thead>
     <tbody id="hist-body">
-      <tr><td colspan="9" class="empty"><span class="spinner"></span>Loading...</td></tr>
+      <tr><td colspan="10" class="empty"><span class="spinner"></span>Loading...</td></tr>
     </tbody>
   </table>
 </div>
@@ -398,7 +404,7 @@ tr:hover td { background: var(--surface-2); }
 <script>
 const API = 'https://sayhgm8sb2.execute-api.us-east-1.amazonaws.com';
 
-let S = { trades: [], open: [], analytics: {}, skips: [], account: {}, portfolio: {}, tf: 'YTD', actShown: 8, actFilter: 'all' };
+let S = { trades: [], open: [], analytics: {}, skips: [], account: {}, portfolio: {}, tf: 'YTD', actShown: 8, actFilter: 'all', histSort: { col: 'closed_at', dir: -1 } };
 
 // â”€â”€ Fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function apiFetch(action) {
@@ -858,20 +864,60 @@ function toggleAc(idx) {
 }
 
 // â”€â”€ Trade History â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function histSortVal(t, col) {
+  const isDP = (t.catalyst || '').includes('Daily Suggestion');
+  switch (col) {
+    case 'ticker':      return (t.ticker || t.underlying || '').toLowerCase();
+    case 'strategy':    return isDP ? 0 : 1;
+    case 'type': {
+      const sym = t.contract_symbol || '';
+      const o = (t.option_type || t.direction || '').toLowerCase();
+      return (o === 'call' || o === 'bullish' || /\d{6}C\d/.test(sym)) ? 0
+           : (o === 'put'  || o === 'bearish'  || /\d{6}P\d/.test(sym)) ? 1 : 2;
+    }
+    case 'score':       return parseFloat(t.score) || 0;
+    case 'opened_at':   return new Date(t.opened_at  || 0).getTime();
+    case 'closed_at':   return new Date(t.closed_at  || 0).getTime();
+    case 'pnl':         return parseFloat(t.pnl) || 0;
+    case 'pnl_pct':     return optionPct(t);
+    case 'exit_reason': return (t.exit_reason || '').toLowerCase();
+    default:            return 0;
+  }
+}
+
 function renderHistory() {
   const tbody = document.getElementById('hist-body');
   document.getElementById('hist-count').textContent = S.trades.length + ' total';
-  const rows = [...S.trades].sort((a, b) => new Date(b.closed_at || 0) - new Date(a.closed_at || 0));
-  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">No closed trades</td></tr>'; return; }
+
+  // Update sort indicators on headers
+  document.querySelectorAll('th[data-col]').forEach(th => {
+    const active = th.dataset.col === S.histSort.col;
+    th.classList.toggle('sort-active', active);
+    const ind = th.querySelector('.sort-ind');
+    if (ind) ind.textContent = active ? (S.histSort.dir === 1 ? 'â–²' : 'â–¼') : 'â†•';
+  });
+
+  const rows = [...S.trades].sort((a, b) => {
+    const av = histSortVal(a, S.histSort.col);
+    const bv = histSortVal(b, S.histSort.col);
+    return av < bv ? -S.histSort.dir : av > bv ? S.histSort.dir : 0;
+  });
+
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="10" class="empty">No closed trades</td></tr>'; return; }
   tbody.innerHTML = rows.map(t => {
-    const pnl = parseFloat(t.pnl) || 0;
-    const pct = optionPct(t);
-    const cls = pnl >= 0 ? 'pos' : 'neg';
-    const score = t.score != null ? parseFloat(t.score).toFixed(1) : '--';
-    const rsn = (t.exit_reason || '').substring(0, 55);
+    const isDP  = (t.catalyst || '').includes('Daily Suggestion');
+    const strat = isDP
+      ? '<span class="daily-badge">Daily Pick</span>'
+      : '<span style="color:var(--text-fade);font-size:10px;font-weight:500;letter-spacing:0.2px">Bot</span>';
+    const pnl    = parseFloat(t.pnl) || 0;
+    const pct    = optionPct(t);
+    const cls    = pnl >= 0 ? 'pos' : 'neg';
+    const score  = t.score != null ? parseFloat(t.score).toFixed(1) : '--';
+    const rsn    = (t.exit_reason || '').substring(0, 45);
     const pctStr = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
     return `<tr>
       <td class="t-ticker">${esc(t.ticker || t.underlying || '?')}</td>
+      <td>${strat}</td>
       <td>${dirBadge(t)}</td>
       <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim)">${esc(contractLabel(t))}</td>
       <td style="color:var(--text-dim)">${score}</td>
@@ -1011,6 +1057,20 @@ document.querySelectorAll('.tf-btn').forEach(btn => btn.addEventListener('click'
 
 document.getElementById('act-more').addEventListener('click', () => { S.actShown += 15; renderActivity(); });
 document.getElementById('refresh-btn').addEventListener('click', loadAll);
+
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (S.histSort.col === col) {
+      S.histSort.dir *= -1;
+    } else {
+      S.histSort.col = col;
+      // Numeric/date cols default descending (biggest first); text cols ascending
+      S.histSort.dir = ['score','pnl','pnl_pct','closed_at','opened_at'].includes(col) ? -1 : 1;
+    }
+    renderHistory();
+  });
+});
 
 document.getElementById('act-filter').addEventListener('click', e => {
   const btn = e.target.closest('.af-btn');
