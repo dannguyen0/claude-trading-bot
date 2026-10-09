@@ -305,7 +305,7 @@ tr:hover td { background: var(--surface-2); }
 <div class="mid-row">
   <div class="panel">
     <div class="panel-hd">
-      <div class="panel-title">Equity Curve</div>
+      <div class="panel-title">Account Value</div>
       <div class="tf-row">
         <button class="tf-btn" data-tf="D">Day</button>
         <button class="tf-btn" data-tf="W">Week</button>
@@ -315,7 +315,7 @@ tr:hover td { background: var(--surface-2); }
       </div>
     </div>
     <div class="chart-container">
-      <svg id="chart-svg" viewBox="0 0 600 100" aria-label="Cumulative P&amp;L chart"></svg>
+      <svg id="chart-svg" viewBox="0 0 600 100" aria-label="Account value over time"></svg>
       <div class="chart-tooltip" id="chart-tip"></div>
     </div>
     <div class="period-summary" id="period-summary"></div>
@@ -398,7 +398,7 @@ tr:hover td { background: var(--surface-2); }
 <script>
 const API = 'https://sayhgm8sb2.execute-api.us-east-1.amazonaws.com';
 
-let S = { trades: [], open: [], analytics: {}, skips: [], account: {}, tf: 'YTD', actShown: 8, actFilter: 'all' };
+let S = { trades: [], open: [], analytics: {}, skips: [], account: {}, portfolio: {}, tf: 'YTD', actShown: 8, actFilter: 'all' };
 
 // â”€â”€ Fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function apiFetch(action) {
@@ -410,16 +410,18 @@ async function apiFetch(action) {
 async function loadAll() {
   document.getElementById('last-upd').textContent = 'Loading...';
   try {
-    const [spreads, analytics, account] = await Promise.all([
+    const [spreads, analytics, account, portfolio] = await Promise.all([
       apiFetch('spreads').catch(() => []),
       apiFetch('analytics').catch(() => ({})),
-      apiFetch('account').catch(() => ({}))
+      apiFetch('account').catch(() => ({})),
+      apiFetch('portfolio_history').catch(() => ({}))
     ]);
     S.open      = Array.isArray(spreads) ? spreads : [];
     S.analytics = analytics || {};
     S.trades    = S.analytics.recent_trades || [];
     S.skips     = S.analytics.recent_skips  || [];
     S.account   = account || {};
+    S.portfolio = portfolio || {};
     render();
     document.getElementById('last-upd').textContent =
       'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -550,64 +552,73 @@ function renderChart() {
   const PX = 6, CURVE_TOP = 10, CURVE_BOT = 88;
   const CURVE_H = CURVE_BOT - CURVE_TOP;
 
-  const trades = filteredTrades().sort((a, b) => new Date(a.closed_at) - new Date(b.closed_at));
+  // Build points from Alpaca portfolio history
+  const hist = S.portfolio;
+  const timestamps = hist.timestamp || [];
+  const equities   = hist.equity   || [];
 
-  if (!trades.length) {
-    svg.innerHTML = '<text x="300" y="55" text-anchor="middle" fill="var(--text-fade)" font-size="11" font-family="DM Sans,sans-serif">No trades in this period</text>';
+  if (!timestamps.length) {
+    svg.innerHTML = '<text x="300" y="55" text-anchor="middle" fill="var(--text-fade)" font-size="11" font-family="DM Sans,sans-serif">No account history available</text>';
     sumEl.innerHTML = '';
     chartPts = [];
     return;
   }
 
-  // Build cumulative series
-  let cum = 0;
-  chartPts = [{ i: 0, v: 0, date: null, pnl: 0 }];
-  trades.forEach((t, idx) => {
-    cum += parseFloat(t.pnl) || 0;
-    chartPts.push({ i: idx + 1, v: cum, date: t.closed_at, pnl: parseFloat(t.pnl) || 0 });
-  });
+  const cut = tfCutoff(S.tf);
+  const allPts = timestamps
+    .map((ts, i) => ({ ts: ts * 1000, v: parseFloat(equities[i]) || 0, date: new Date(ts * 1000).toISOString() }))
+    .filter(p => p.v > 0 && p.ts >= cut);
 
+  if (allPts.length < 2) {
+    svg.innerHTML = '<text x="300" y="55" text-anchor="middle" fill="var(--text-fade)" font-size="11" font-family="DM Sans,sans-serif">No data in this period</text>';
+    sumEl.innerHTML = '';
+    chartPts = [];
+    return;
+  }
+
+  chartPts = allPts.map((p, i) => ({ i, v: p.v, date: p.date }));
   const n = chartPts.length;
   const yVals = chartPts.map(p => p.v);
   const minY = Math.min(...yVals), maxY = Math.max(...yVals);
-  const pad = Math.max((maxY - minY) * 0.12, 30);
+  const pad = Math.max((maxY - minY) * 0.15, 200);
   const lo = minY - pad, hi = maxY + pad;
 
   const sx = i => PX + (i / Math.max(n - 1, 1)) * (W - PX * 2);
   const sy = v => CURVE_TOP + CURVE_H - ((v - lo) / (hi - lo)) * CURVE_H;
-  const zeroY = Math.min(Math.max(sy(0), CURVE_TOP), CURVE_BOT);
 
   const lineD = chartPts.map((p, j) => `${j===0?'M':'L'}${sx(j).toFixed(1)},${sy(p.v).toFixed(1)}`).join(' ');
 
-  const finalVal = chartPts[n - 1].v;
-  const lineColor = finalVal >= 0 ? 'var(--green)' : 'var(--red)';
+  const startV  = chartPts[0].v;
+  const finalV  = chartPts[n - 1].v;
+  const change  = finalV - startV;
+  const lineColor = change >= 0 ? 'var(--green)' : 'var(--red)';
+  const startY  = sy(startV).toFixed(1);
 
-  // Date labels (tiny)
-  const labelIdxs = [1, Math.ceil(n/2), n-1].filter(i => i < n && chartPts[i].date);
+  // Date labels
+  const labelIdxs = [0, Math.ceil(n / 2), n - 1];
   const dateLabels = labelIdxs.map(i => {
     const x = sx(i).toFixed(1);
-    const anchor = i <= 1 ? 'start' : i === n-1 ? 'end' : 'middle';
+    const anchor = i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle';
     return `<text x="${x}" y="${H-1}" text-anchor="${anchor}" fill="var(--text-fade)" font-size="6.5" font-family="DM Sans,sans-serif">${esc(fmtShortDate(chartPts[i].date))}</text>`;
   }).join('');
 
   svg.innerHTML = `
-    <line x1="${PX}" y1="${zeroY.toFixed(1)}" x2="${W-PX}" y2="${zeroY.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>
-    <path d="${lineD}" fill="none" stroke="${lineColor}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle id="chart-dot" cx="${sx(n-1).toFixed(1)}" cy="${sy(finalVal).toFixed(1)}" r="2" fill="${lineColor}"/>
-    <text id="chart-val-lbl" x="${Math.min(sx(n-1), W-PX-2).toFixed(1)}" y="${Math.max(sy(finalVal)-5, CURVE_TOP+7).toFixed(1)}" text-anchor="end" fill="${lineColor}" font-size="8" font-weight="500" font-family="DM Sans,sans-serif">${fmt$(Math.round(finalVal))}</text>
+    <line x1="${PX}" y1="${startY}" x2="${W-PX}" y2="${startY}" stroke="var(--border)" stroke-width="1" stroke-dasharray="2 2"/>
+    <path d="${lineD}" fill="none" stroke="${lineColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle id="chart-dot" cx="${sx(n-1).toFixed(1)}" cy="${sy(finalV).toFixed(1)}" r="2" fill="${lineColor}"/>
+    <text id="chart-val-lbl" x="${Math.min(sx(n-1), W-PX-2).toFixed(1)}" y="${Math.max(sy(finalV)-5, CURVE_TOP+7).toFixed(1)}" text-anchor="end" fill="${lineColor}" font-size="8" font-weight="500" font-family="DM Sans,sans-serif">$${Math.round(finalV).toLocaleString()}</text>
     <line id="crosshair" x1="0" y1="${CURVE_TOP}" x2="0" y2="${CURVE_BOT}" stroke="var(--text-fade)" stroke-width="1" stroke-dasharray="2 2" opacity="0"/>
     <circle id="hover-dot" cx="0" cy="0" r="2.5" fill="var(--surface)" stroke="${lineColor}" stroke-width="1" opacity="0"/>
     ${dateLabels}
     <rect id="chart-hover-area" x="${PX}" y="${CURVE_TOP}" width="${W - PX*2}" height="${CURVE_H}" fill="transparent" style="cursor:crosshair"/>`;
 
   // Period summary
-  const wins = trades.filter(t => (parseFloat(t.pnl)||0) > 0).length;
-  const totalPnl = trades.reduce((s,t) => s + (parseFloat(t.pnl)||0), 0);
-  const cls = totalPnl >= 0 ? 'pos' : 'neg';
+  const changePct = startV > 0 ? (change / startV * 100) : 0;
+  const cls = change >= 0 ? 'pos' : 'neg';
   sumEl.innerHTML = `
-    <span class="ps-item"><b class="${cls}">${fmt$(Math.round(totalPnl))}</b> this period</span>
-    <span class="ps-item"><b>${trades.length}</b> trades</span>
-    <span class="ps-item"><b>${wins}W / ${trades.length - wins}L</b></span>`;
+    <span class="ps-item"><b class="${cls}">$${Math.round(finalV).toLocaleString()}</b> current</span>
+    <span class="ps-item">started <b>$${Math.round(startV).toLocaleString()}</b></span>
+    <span class="ps-item"><b class="${cls}">${change >= 0 ? '+' : ''}$${Math.round(Math.abs(change)).toLocaleString()} (${changePct >= 0 ? '+' : ''}${changePct.toFixed(1)}%)</b></span>`;
 
   requestAnimationFrame(() => {
     const hoverArea = document.getElementById('chart-hover-area');
@@ -657,8 +668,8 @@ function onChartHover(e) {
   if (cd) cd.setAttribute('opacity', '0');
 
   // Tooltip
-  const dateStr = pt.date ? fmtShortDate(pt.date) : 'Start';
-  tip.textContent = dateStr + '  ' + fmt$(Math.round(pt.v));
+  const dateStr = pt.date ? fmtShortDate(pt.date) : '';
+  tip.textContent = (dateStr ? dateStr + '  ' : '') + '$' + Math.round(pt.v).toLocaleString();
   tip.style.opacity = '1';
   const tipX = (cx / W * rect.width) + rect.left - rect.left;
   tip.style.left = Math.max(40, Math.min(rect.width - 40, tipX)) + 'px';
