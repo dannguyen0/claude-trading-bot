@@ -577,6 +577,20 @@ function renderChart() {
   }
 
   chartPts = allPts.map((p, i) => ({ i, v: p.v, date: p.date }));
+
+  // Pin the last point to live account equity â€” portfolio history only updates at EOD,
+  // so without this the chart endpoint lags behind the KPI tile.
+  const liveEq = parseFloat(S.account.equity) || 0;
+  if (liveEq > 0) {
+    const today = new Date().toDateString();
+    const last  = chartPts[chartPts.length - 1];
+    if (new Date(last.date).toDateString() === today) {
+      last.v = liveEq;                           // update today's point in-place
+    } else {
+      chartPts.push({ i: chartPts.length, v: liveEq, date: new Date().toISOString() });
+    }
+  }
+
   const n = chartPts.length;
   const yVals = chartPts.map(p => p.v);
   const minY = Math.min(...yVals), maxY = Math.max(...yVals);
