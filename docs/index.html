@@ -261,6 +261,17 @@ tr:hover td { background: var(--surface-2); }
 .show-more { display: block; width: 100%; padding: 10px; border: none; border-top: 1px solid var(--border-lt); background: none; color: var(--text-fade); font-size: 11px; font-weight: 500; cursor: pointer; font-family: inherit; text-align: center; margin-bottom: 20px; transition: color .12s; }
 .show-more:hover { color: var(--text-dim); }
 .hidden { display: none !important; }
+
+/* Activity filter tabs */
+.act-filter { display: flex; gap: 3px; }
+.af-btn {
+  padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border);
+  background: none; color: var(--text-fade); font-size: 10px; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: all .12s; letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.af-btn:hover { color: var(--text-dim); border-color: var(--text-dim); }
+.af-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
 </style>
 
 <!-- HTML -->
@@ -286,6 +297,8 @@ tr:hover td { background: var(--surface-2); }
   <div class="kpi"><div class="kpi-lbl">Avg Win</div><div class="kpi-val" id="k-avgw">--</div><div class="kpi-sub" id="k-avgw-sub"></div></div>
   <div class="kpi"><div class="kpi-lbl">Avg Loss</div><div class="kpi-val" id="k-avgl">--</div><div class="kpi-sub" id="k-avgl-sub"></div></div>
   <div class="kpi"><div class="kpi-lbl">Expectancy</div><div class="kpi-val" id="k-exp">--</div><div class="kpi-sub" id="k-exp-sub"></div></div>
+  <div class="kpi"><div class="kpi-lbl">Account Value</div><div class="kpi-val" id="k-equity">--</div><div class="kpi-sub" id="k-equity-sub">paper account</div></div>
+  <div class="kpi"><div class="kpi-lbl">Buying Power</div><div class="kpi-val" id="k-bp">--</div><div class="kpi-sub" id="k-bp-sub">available</div></div>
 </div>
 
 <!-- MID ROW: chart + open positions -->
@@ -333,7 +346,14 @@ tr:hover td { background: var(--surface-2); }
 <!-- RECENT ACTIVITY -->
 <div class="sec-hd">
   <div class="sec-title">Recent Activity</div>
-  <div class="sec-count" id="act-count"></div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="act-filter" id="act-filter">
+      <button class="af-btn active" data-f="all">All</button>
+      <button class="af-btn" data-f="trade">Trades</button>
+      <button class="af-btn" data-f="skip">Skips</button>
+    </div>
+    <div class="sec-count" id="act-count"></div>
+  </div>
 </div>
 <div class="act-list" id="act-list">
   <div class="empty"><span class="spinner"></span>Loading...</div>
@@ -378,7 +398,7 @@ tr:hover td { background: var(--surface-2); }
 <script>
 const API = 'https://sayhgm8sb2.execute-api.us-east-1.amazonaws.com';
 
-let S = { trades: [], open: [], analytics: {}, skips: [], tf: 'YTD', actShown: 8 };
+let S = { trades: [], open: [], analytics: {}, skips: [], account: {}, tf: 'YTD', actShown: 8, actFilter: 'all' };
 
 // â”€â”€ Fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function apiFetch(action) {
@@ -390,14 +410,16 @@ async function apiFetch(action) {
 async function loadAll() {
   document.getElementById('last-upd').textContent = 'Loading...';
   try {
-    const [spreads, analytics] = await Promise.all([
+    const [spreads, analytics, account] = await Promise.all([
       apiFetch('spreads').catch(() => []),
-      apiFetch('analytics').catch(() => ({}))
+      apiFetch('analytics').catch(() => ({})),
+      apiFetch('account').catch(() => ({}))
     ]);
     S.open      = Array.isArray(spreads) ? spreads : [];
     S.analytics = analytics || {};
     S.trades    = S.analytics.recent_trades || [];
     S.skips     = S.analytics.recent_skips  || [];
+    S.account   = account || {};
     render();
     document.getElementById('last-upd').textContent =
       'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -502,6 +524,11 @@ function renderKPIs() {
 
   const exp = s.expectancy != null ? s.expectancy : 0;
   setKpi('k-exp', fmt$(Math.round(exp)), exp >= 0 ? 'pos' : 'neg', 'per trade');
+
+  const equity = parseFloat(S.account.equity) || 0;
+  const bp     = parseFloat(S.account.buying_power) || 0;
+  if (equity > 0) setKpi('k-equity', '$' + equity.toLocaleString('en-US', { maximumFractionDigits: 0 }), '', 'paper account');
+  if (bp > 0)     setKpi('k-bp',     '$' + bp.toLocaleString('en-US', { maximumFractionDigits: 0 }), '', 'available');
 }
 
 function setKpi(id, val, cls, sub) {
@@ -691,11 +718,14 @@ function renderActivity() {
   // Merge closed trades + debate skips into one feed, newest first
   const tradeItems = S.trades.map(t => ({ ...t, _feed: 'trade', _ts: t.closed_at || '' }));
   const skipItems  = S.skips.map(s  => ({ ...s,  _feed: 'skip',  _ts: s.timestamp || '' }));
-  const sorted = [...tradeItems, ...skipItems].sort((a, b) => new Date(b._ts || 0) - new Date(a._ts || 0));
+  const allSorted = [...tradeItems, ...skipItems].sort((a, b) => new Date(b._ts || 0) - new Date(a._ts || 0));
+  const sorted = S.actFilter === 'trade' ? allSorted.filter(x => x._feed === 'trade')
+               : S.actFilter === 'skip'  ? allSorted.filter(x => x._feed === 'skip')
+               : allSorted;
   document.getElementById('act-count').textContent = sorted.length ? sorted.length + ' events' : '';
 
   const shown = sorted.slice(0, S.actShown);
-  if (!shown.length) { list.innerHTML = '<div class="empty">No trades yet</div>'; moreBtn.classList.add('hidden'); return; }
+  if (!shown.length) { list.innerHTML = '<div class="empty">No activity for this filter</div>'; moreBtn.classList.add('hidden'); return; }
 
   list.innerHTML = shown.map((t, idx) => {
     // â”€â”€ Debate-skip card (no trade executed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -956,6 +986,16 @@ document.querySelectorAll('.tf-btn').forEach(btn => btn.addEventListener('click'
 
 document.getElementById('act-more').addEventListener('click', () => { S.actShown += 15; renderActivity(); });
 document.getElementById('refresh-btn').addEventListener('click', loadAll);
+
+document.getElementById('act-filter').addEventListener('click', e => {
+  const btn = e.target.closest('.af-btn');
+  if (!btn) return;
+  S.actFilter = btn.dataset.f;
+  S.actShown = 8;
+  document.querySelectorAll('.af-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderActivity();
+});
 
 loadAll();
 </script>
