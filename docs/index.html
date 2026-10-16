@@ -568,8 +568,8 @@ function fmtDateTime(s) {
   if (!s) return '--';
   const d = new Date(s);
   const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
-  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York' });
-  return date + ' &middot; ' + time + ' ET';
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Los_Angeles' });
+  return date + ' &middot; ' + time + ' PT';
 }
 function fmtShortDate(s) {
   if (!s) return '';
