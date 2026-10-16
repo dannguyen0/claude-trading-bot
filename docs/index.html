@@ -247,6 +247,57 @@ body {
 .act-card.open .act-chevron { transform: rotate(180deg); }
 .skip-pill { display: inline-flex; align-items: center; background: var(--surface-2); color: var(--text-fade); border-radius: 20px; padding: 2px 9px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
 
+/* Judge Intel button */
+.intel-btn {
+  padding: 5px 13px; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-fade); font-size: 11px; font-weight: 500;
+  cursor: pointer; font-family: inherit; transition: all .2s var(--spring);
+  letter-spacing: 0.1px; box-shadow: var(--shadow-sm);
+}
+.intel-btn:hover { color: var(--blue); border-color: var(--blue); background: var(--blue-bg); transform: scale(1.02); }
+
+/* Judge Intel modal */
+.intel-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(4px); z-index: 200; align-items: flex-end; justify-content: center;
+}
+.intel-overlay.open { display: flex; }
+.intel-sheet {
+  background: var(--surface); border-radius: 20px 20px 0 0;
+  width: 100%; max-width: 680px; max-height: 82vh; overflow-y: auto;
+  padding: 0 0 40px; box-shadow: 0 -4px 40px rgba(0,0,0,0.18);
+  animation: slideUp .28s var(--spring);
+}
+@keyframes slideUp { from { transform: translateY(100%); opacity:0; } to { transform: translateY(0); opacity:1; } }
+.intel-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 12px auto 0; }
+.intel-header { padding: 18px 22px 0; display: flex; align-items: center; justify-content: space-between; }
+.intel-title { font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
+.intel-close { background: var(--surface-2); border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 14px; cursor: pointer; color: var(--text-fade); display: flex; align-items: center; justify-content: center; }
+.intel-body { padding: 16px 22px 0; }
+.intel-section { margin-bottom: 20px; }
+.intel-section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-fade); margin-bottom: 10px; }
+.cal-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.cal-stat { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; }
+.cal-stat-val { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+.cal-stat-lbl { font-size: 10px; color: var(--text-fade); margin-top: 2px; }
+.conf-band-row { display: flex; flex-direction: column; gap: 8px; }
+.conf-band { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; }
+.conf-band-range { font-size: 11px; font-weight: 600; color: var(--text-dim); min-width: 60px; }
+.conf-band-bar-wrap { flex: 1; height: 5px; background: var(--border-lt); border-radius: 3px; overflow: hidden; }
+.conf-band-bar { height: 100%; border-radius: 3px; transition: width .6s var(--spring); }
+.conf-band-pct { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+.conf-band-flag { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; padding: 2px 7px; border-radius: 20px; }
+.flag-over  { background: var(--red-bg);   color: var(--red);   }
+.flag-under { background: var(--blue-bg);  color: var(--blue);  }
+.flag-ok    { background: var(--green-bg); color: var(--green); }
+.resolved-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.resolved-table th { font-size: 9px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-fade); padding: 0 8px 8px 0; text-align: left; }
+.resolved-table td { padding: 7px 8px 7px 0; border-top: 1px solid var(--border-lt); color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.outcome-correct { color: var(--green); font-weight: 600; }
+.outcome-missed  { color: var(--red);   font-weight: 600; }
+.intel-empty { color: var(--text-fade); font-size: 12px; text-align: center; padding: 24px 0; }
+@media (max-width: 600px) { .cal-stat-row { grid-template-columns: 1fr 1fr; } }
+
 .debate-panel { display: none; border-top: 1px solid var(--border-lt); padding: 12px 0 14px 14px; flex-direction: column; gap: 8px; }
 .act-card.open .debate-panel { display: flex; }
 
@@ -337,8 +388,23 @@ th.sort-active { color: var(--text); }
   </div>
   <div class="logo-badge"><span class="dot"></span>Aggressive 2.0 Live</div>
   <div class="header-right">
+    <button class="intel-btn" id="intel-btn">&#129504; Judge Intel</button>
     <button class="refresh-btn" id="refresh-btn">&#8635; Refresh</button>
     <div class="last-upd" id="last-upd">Loading...</div>
+  </div>
+</div>
+
+<!-- Judge Intel sheet -->
+<div class="intel-overlay" id="intel-overlay">
+  <div class="intel-sheet" id="intel-sheet">
+    <div class="intel-handle"></div>
+    <div class="intel-header">
+      <div class="intel-title">&#129504; Judge Intelligence</div>
+      <button class="intel-close" id="intel-close">&#10005;</button>
+    </div>
+    <div class="intel-body" id="intel-body">
+      <div class="intel-empty">Loading...</div>
+    </div>
   </div>
 </div>
 
@@ -1206,4 +1272,116 @@ function setActFilter(f) {
 }
 
 loadAll();
+
+// â”€â”€ Judge Intel panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const intelOverlay = document.getElementById('intel-overlay');
+const intelBody    = document.getElementById('intel-body');
+let intelLoaded = false;
+
+document.getElementById('intel-btn').addEventListener('click', () => {
+  intelOverlay.classList.add('open');
+  if (!intelLoaded) loadIntel();
+});
+document.getElementById('intel-close').addEventListener('click', () => intelOverlay.classList.remove('open'));
+intelOverlay.addEventListener('click', e => { if (e.target === intelOverlay) intelOverlay.classList.remove('open'); });
+
+async function loadIntel() {
+  intelBody.innerHTML = '<div class="intel-empty">Loading...</div>';
+  try {
+    const r = await fetch(`${API_URL}?strategy=naked&action=judge_intel`);
+    const d = await r.json();
+    intelLoaded = true;
+    renderIntel(d);
+  } catch(e) {
+    intelBody.innerHTML = `<div class="intel-empty">Failed to load: ${esc(String(e))}</div>`;
+  }
+}
+
+function renderIntel(d) {
+  const cal = d.calibration || {};
+  const resolved = d.resolved_skips || [];
+  const n = cal.total_resolved || 0;
+
+  if (!n) {
+    intelBody.innerHTML = '<div class="intel-empty">No resolved skip outcomes yet â€” check back after the first few SKIPs expire or move significantly.</div>';
+    return;
+  }
+
+  const acc     = Math.round((cal.overall_accuracy || 0) * 100);
+  const missed  = Math.round((cal.missed_winners_pct || 0) * 100);
+  const playWin = Math.round((cal.play_win_rate || 0) * 100);
+
+  // Confidence band rows
+  const byConf = cal.by_confidence || {};
+  const bandOrder = ['high', 'medium', 'low'];
+  const bandHTML = bandOrder.filter(b => byConf[b]).map(b => {
+    const bd = byConf[b];
+    const a  = Math.round((bd.accuracy || 0) * 100);
+    const v  = bd.verdict || '';
+    const barCol = a >= 65 ? 'var(--green)' : a >= 50 ? 'var(--blue)' : 'var(--red)';
+    const flagCls = v === 'OVERCONFIDENT' ? 'flag-over' : v === 'UNDERCONFIDENT' ? 'flag-under' : 'flag-ok';
+    const flagTxt = v === 'well_calibrated' ? 'Calibrated' : v;
+    return `<div class="conf-band">
+      <div class="conf-band-range">Conf ${esc(bd.range || b)}</div>
+      <div class="conf-band-bar-wrap"><div class="conf-band-bar" style="width:${a}%;background:${barCol}"></div></div>
+      <div class="conf-band-pct" style="color:${barCol}">${a}%</div>
+      <div class="conf-band-flag ${flagCls}">${esc(flagTxt)}</div>
+      <div style="font-size:10px;color:var(--text-fade)">${bd.n || 0} calls</div>
+    </div>`;
+  }).join('');
+
+  // Resolved skips table (last 20)
+  const recent = resolved.slice(0, 20);
+  const rowsHTML = recent.length ? recent.map(r => {
+    const correct = r.was_correct === true || r.was_correct === 'True';
+    const pct = parseFloat(r.pct_change || 0);
+    const pctStr = (pct >= 0 ? '+' : '') + pct.toFixed(0) + '%';
+    const outcomeClass = correct ? 'outcome-correct' : 'outcome-missed';
+    const outcomeLabel = correct ? 'Correct Skip' : 'Missed Winner';
+    const conf = r.judge_confidence || 'â€”';
+    const d = (r.evaluated_at || r.skipped_at || '').slice(0,10);
+    const contract = contractLabel(r) || (r.direction === 'bearish' ? 'Put' : 'Call');
+    return `<tr>
+      <td>${esc(r.ticker || '?')}</td>
+      <td>${esc(contract)}</td>
+      <td>${esc(conf)}/10</td>
+      <td style="color:${pct>=0?'var(--green)':'var(--red)'}">${pctStr}</td>
+      <td class="${outcomeClass}">${outcomeLabel}</td>
+      <td style="color:var(--text-fade)">${esc(d)}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="6" style="color:var(--text-fade);padding:16px 0">No resolved outcomes yet</td></tr>';
+
+  const topMissed = (cal.top_missed_tickers || []).join(', ') || 'â€”';
+
+  intelBody.innerHTML = `
+    <div class="intel-section">
+      <div class="intel-section-title">Overall Performance</div>
+      <div class="cal-stat-row">
+        <div class="cal-stat">
+          <div class="cal-stat-val" style="color:${acc>=60?'var(--green)':acc>=50?'var(--blue)':'var(--red)'}">${acc}%</div>
+          <div class="cal-stat-lbl">SKIP Accuracy<br><span style="font-size:9px">${n} decisions</span></div>
+        </div>
+        <div class="cal-stat">
+          <div class="cal-stat-val" style="color:${missed>40?'var(--red)':missed>25?'var(--blue)':'var(--green)'}">${missed}%</div>
+          <div class="cal-stat-lbl">Missed Winners<br><span style="font-size:9px">Play was right</span></div>
+        </div>
+        <div class="cal-stat">
+          <div class="cal-stat-val" style="color:var(--text-dim)">${playWin}%</div>
+          <div class="cal-stat-lbl">Play Win Rate<br><span style="font-size:9px">vs No Play ${100-playWin}%</span></div>
+        </div>
+      </div>
+      ${topMissed !== 'â€”' ? `<div style="font-size:11px;color:var(--text-fade)">Most missed winners on: <b style="color:var(--text-dim)">${esc(topMissed)}</b></div>` : ''}
+    </div>
+    <div class="intel-section">
+      <div class="intel-section-title">Confidence Calibration</div>
+      <div class="conf-band-row">${bandHTML || '<div class="intel-empty">Not enough data per band yet</div>'}</div>
+    </div>
+    <div class="intel-section">
+      <div class="intel-section-title">Recent Resolved Outcomes</div>
+      <table class="resolved-table">
+        <thead><tr><th>Ticker</th><th>Contract</th><th>Conf</th><th>Move</th><th>Outcome</th><th>Date</th></tr></thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
+    </div>`;
+}
 </script>
