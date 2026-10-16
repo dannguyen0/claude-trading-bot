@@ -841,9 +841,10 @@ function renderActivity() {
   list.innerHTML = shown.map((t, idx) => {
     // â”€â”€ Debate-skip card (no trade executed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (t._feed === 'skip') {
+      const skipType = t.direction === 'bearish' ? 'Put' : 'Call';
       const debatePanel = `<div class="deb-row">
-          ${t.bull_case ? `<div class="deb-block bull"><div class="deb-lbl">Bull Agent</div><div class="deb-txt">${esc(stripMd(t.bull_case))}</div></div>` : ''}
-          ${t.bear_case ? `<div class="deb-block bear"><div class="deb-lbl">Bear Agent</div><div class="deb-txt">${esc(stripMd(t.bear_case))}</div></div>` : ''}
+          ${t.bull_case ? `<div class="deb-block bull"><div class="deb-lbl">Play</div><div class="deb-txt">${esc(stripMd(t.bull_case))}</div></div>` : ''}
+          ${t.bear_case ? `<div class="deb-block bear"><div class="deb-lbl">No Play</div><div class="deb-txt">${esc(stripMd(t.bear_case))}</div></div>` : ''}
         </div>
         <div class="deb-block meta deb-full">
           <div class="deb-lbl">Judge Agent &mdash; SKIP</div>
@@ -853,7 +854,7 @@ function renderActivity() {
       return `<div class="act-card" id="ac${idx}">
         <div class="act-head" onclick="toggleAc(${idx})">
           <div class="act-stripe skip"></div>
-          <div class="act-ticker" style="color:var(--text-dim)">${esc(t.ticker || '?')}</div>
+          <div class="act-ticker" style="color:var(--text-dim)">${esc(t.ticker || '?')} <span style="font-size:9px;font-weight:600;color:var(--text-fade)">${skipType}</span></div>
           <div class="act-info">
             <div class="act-contract" style="color:var(--text-fade)">Debated &mdash; Judge blocked entry</div>
             <div class="act-reason">${esc((t.rationale || '').substring(0, 90))}</div>
@@ -888,8 +889,8 @@ function renderActivity() {
         t.judge_reasoning ? esc(stripMd(t.judge_reasoning)) : '',
       ].filter(Boolean).join(' &mdash; ');
       debate = `<div class="deb-row">
-          ${hasBull ? `<div class="deb-block bull"><div class="deb-lbl">Bull Agent</div><div class="deb-txt">${esc(stripMd(t.bull_case))}</div></div>` : ''}
-          ${hasBear ? `<div class="deb-block bear"><div class="deb-lbl">Bear Agent</div><div class="deb-txt">${esc(stripMd(t.bear_case))}</div></div>` : ''}
+          ${hasBull ? `<div class="deb-block bull"><div class="deb-lbl">Play</div><div class="deb-txt">${esc(stripMd(t.bull_case))}</div></div>` : ''}
+          ${hasBear ? `<div class="deb-block bear"><div class="deb-lbl">No Play</div><div class="deb-txt">${esc(stripMd(t.bear_case))}</div></div>` : ''}
         </div>
         ${hasJudge ? `<div class="deb-block judge deb-full">
           <div class="deb-lbl">Judge Agent</div>
