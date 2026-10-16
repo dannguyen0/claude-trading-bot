@@ -1288,7 +1288,7 @@ intelOverlay.addEventListener('click', e => { if (e.target === intelOverlay) int
 async function loadIntel() {
   intelBody.innerHTML = '<div class="intel-empty">Loading...</div>';
   try {
-    const r = await fetch(`${API_URL}?strategy=naked&action=judge_intel`);
+    const r = await fetch(`${API}/?strategy=naked&action=judge_intel`);
     const d = await r.json();
     intelLoaded = true;
     renderIntel(d);
