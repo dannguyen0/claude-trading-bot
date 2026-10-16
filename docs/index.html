@@ -232,7 +232,7 @@ body {
 .act-ticker { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; min-width: 50px; color: var(--text); }
 .act-info { flex: 1; min-width: 0; }
 .act-contract { font-size: 11px; color: var(--text-dim); }
-.act-reason { font-size: 10px; color: var(--text-fade); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 380px; }
+.act-reason { font-size: 10px; color: var(--text-fade); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
 .act-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex-shrink: 0; }
 .act-pnl { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -937,7 +937,7 @@ function renderActivity() {
           <div class="act-ticker" style="color:var(--text-dim)">${esc(t.ticker || '?')}</div>
           <div class="act-info">
             <div class="act-contract">${esc(contractLbl)} &middot; <span style="color:var(--text-fade)">Judge blocked</span></div>
-            <div class="act-reason">${esc((t.rationale || '').substring(0, 90))}</div>
+            <div class="act-reason">${esc(t.rationale || '')}</div>
           </div>
           <div class="act-right">
             <div class="act-pnl"><span class="skip-pill">Skip</span></div>
@@ -956,7 +956,7 @@ function renderActivity() {
     const sc = isWin ? 'win' : 'loss';
     const pc = isWin ? 'pos' : 'neg';
     const contract = contractLabel(t);
-    const reason = (t.exit_reason || '').substring(0, 90);
+    const reason = t.exit_reason || '';
     const hasBull = !!t.bull_case, hasBear = !!t.bear_case;
     const hasJudge = !!(t.judge_verdict || t.judge_reasoning);
     const isDailyPick = (t.catalyst || '').includes('Daily Suggestion');
