@@ -497,12 +497,23 @@ function fmtDate(s) {
   if (!s) return '--';
   return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
 }
+function fmtDateTime(s) {
+  if (!s) return '--';
+  const d = new Date(s);
+  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York' });
+  return date + ' Â· ' + time + ' ET';
+}
 function fmtShortDate(s) {
   if (!s) return '';
   return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 function esc(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+// Strip **bold** and *italic* markdown before display
+function stripMd(s) {
+  return (s || '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').trim();
 }
 function contractLabel(t) {
   const sym = t.contract_symbol || t.symbol || '';
@@ -831,12 +842,12 @@ function renderActivity() {
     // â”€â”€ Debate-skip card (no trade executed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (t._feed === 'skip') {
       const debatePanel = `<div class="deb-row">
-          ${t.bull_case ? `<div class="deb-block bull"><div class="deb-lbl">Bull Agent</div><div class="deb-txt">${esc(t.bull_case)}</div></div>` : ''}
-          ${t.bear_case ? `<div class="deb-block bear"><div class="deb-lbl">Bear Agent</div><div class="deb-txt">${esc(t.bear_case)}</div></div>` : ''}
+          ${t.bull_case ? `<div class="deb-block bull"><div class="deb-lbl">Bull Agent</div><div class="deb-txt">${esc(stripMd(t.bull_case))}</div></div>` : ''}
+          ${t.bear_case ? `<div class="deb-block bear"><div class="deb-lbl">Bear Agent</div><div class="deb-txt">${esc(stripMd(t.bear_case))}</div></div>` : ''}
         </div>
-        <div class="deb-block judge deb-full">
-          <div class="deb-lbl">Judge Agent â€” SKIP</div>
-          <div class="deb-txt" style="color:var(--red)">${esc(t.judge_reasoning || 'No reasoning recorded')}</div>
+        <div class="deb-block meta deb-full">
+          <div class="deb-lbl">Judge Agent &mdash; SKIP</div>
+          <div class="deb-txt">${esc(stripMd(t.judge_reasoning || 'No reasoning recorded'))}</div>
           ${t.judge_confidence != null ? `<div class="conf-chip" style="background:var(--text-dim)">Confidence ${esc(t.judge_confidence)}/10</div>` : ''}
         </div>`;
       return `<div class="act-card" id="ac${idx}">
@@ -849,7 +860,7 @@ function renderActivity() {
           </div>
           <div class="act-right">
             <div class="act-pnl" style="color:var(--text-fade)">No trade</div>
-            <div class="act-date">${fmtDate(t.timestamp)}</div>
+            <div class="act-date">${fmtDateTime(t.timestamp)}</div>
           </div>
           <div class="act-chevron">&#9660;</div>
         </div>
@@ -874,17 +885,17 @@ function renderActivity() {
       const verdictColor = t.judge_verdict === 'BUY' ? 'var(--green)' : t.judge_verdict === 'SKIP' ? 'var(--red)' : 'var(--blue)';
       const judgeText = [
         t.judge_verdict ? `<b style="color:${verdictColor}">${esc(t.judge_verdict)}</b>` : '',
-        t.judge_reasoning ? esc(t.judge_reasoning) : '',
-      ].filter(Boolean).join(' â€” ');
+        t.judge_reasoning ? esc(stripMd(t.judge_reasoning)) : '',
+      ].filter(Boolean).join(' &mdash; ');
       debate = `<div class="deb-row">
-          ${hasBull ? `<div class="deb-block bull"><div class="deb-lbl">Bull Agent</div><div class="deb-txt">${esc(t.bull_case)}</div></div>` : ''}
-          ${hasBear ? `<div class="deb-block bear"><div class="deb-lbl">Bear Agent</div><div class="deb-txt">${esc(t.bear_case)}</div></div>` : ''}
+          ${hasBull ? `<div class="deb-block bull"><div class="deb-lbl">Bull Agent</div><div class="deb-txt">${esc(stripMd(t.bull_case))}</div></div>` : ''}
+          ${hasBear ? `<div class="deb-block bear"><div class="deb-lbl">Bear Agent</div><div class="deb-txt">${esc(stripMd(t.bear_case))}</div></div>` : ''}
         </div>
         ${hasJudge ? `<div class="deb-block judge deb-full">
           <div class="deb-lbl">Judge Agent</div>
           <div class="deb-txt">${judgeText || '--'}</div>
           ${t.judge_confidence != null ? `<div class="conf-chip">Confidence ${esc(t.judge_confidence)}/10</div>` : ''}
-          ${t.overruled_objection && t.overruled_objection !== 'null' ? `<div class="deb-txt" style="margin-top:8px;font-size:11px"><b style="color:var(--red)">Bear objection overruled:</b> ${esc(t.overruled_objection)}</div>` : ''}
+          ${t.overruled_objection && t.overruled_objection !== 'null' ? `<div class="deb-txt" style="margin-top:8px;font-size:11px"><b style="color:var(--red)">Bear objection overruled:</b> ${esc(stripMd(t.overruled_objection))}</div>` : ''}
         </div>` : ''}`;
     } else {
       const score = t.score != null ? parseFloat(t.score).toFixed(1) : null;
@@ -911,7 +922,7 @@ function renderActivity() {
         <div class="act-right">
           <div class="act-pnl ${pc}">${fmt$(Math.round(pnl))}</div>
           <div class="act-pct ${pc}">${pctStr} (option)</div>
-          <div class="act-date">${fmtDate(t.closed_at)}</div>
+          <div class="act-date">${fmtDateTime(t.closed_at)}</div>
         </div>
         <div class="act-chevron">&#9660;</div>
       </div>
