@@ -316,12 +316,11 @@ body {
 
 /* Decision log */
 .dl-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-.dl-table th { font-size: 9px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--text-fade); padding: 0 10px 8px 0; text-align: left; white-space: nowrap; }
-.dl-table td { padding: 8px 10px 8px 0; border-top: 1px solid var(--border-lt); vertical-align: middle; }
+.dl-table th { font-size: 9px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--text-fade); padding: 0 12px 8px 0; text-align: left; white-space: nowrap; }
+.dl-table td { padding: 8px 12px 8px 0; border-top: 1px solid var(--border-lt); vertical-align: middle; }
+.dl-table th:first-child, .dl-table td:first-child { padding-left: 4px; min-width: 110px; }
 .dl-row { cursor: pointer; transition: background .1s; }
 .dl-row:hover td { background: var(--surface-2); }
-.dl-row td:first-child { padding-left: 8px; border-radius: 6px 0 0 6px; }
-.dl-row td:last-child  { border-radius: 0 6px 6px 0; }
 .dl-chevron { display: inline-block; transition: transform .2s var(--spring); color: var(--text-fade); font-size: 9px; margin-left: 4px; }
 .dl-row.open .dl-chevron { transform: rotate(90deg); }
 .dl-detail { display: none; }
@@ -1365,7 +1364,7 @@ const AGENT_COLORS = { play: '#34C759', noplay: '#FF3B30', judge: '#007AFF' };
 const AGENT_LABELS = { play: 'Play', noplay: 'No Play', judge: 'Judge' };
 
 function buildTrendChart(trend, muted) {
-  if (!trend || trend.length < 2) return '';
+  if (!trend || trend.length < 1) return '';
   const W = 560, H = 110, PAD = { t: 10, r: 10, b: 28, l: 36 };
   const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
   const keys = ['play','noplay','judge'];
@@ -1373,7 +1372,7 @@ function buildTrendChart(trend, muted) {
   if (!allVals.length) return '';
   const minV = Math.max(0,   Math.min(...allVals) - 0.08);
   const maxV = Math.min(1.0, Math.max(...allVals) + 0.08);
-  const xScale = i => PAD.l + (i / Math.max(trend.length - 1, 1)) * cW;
+  const xScale = i => trend.length === 1 ? PAD.l + cW/2 : PAD.l + (i / (trend.length - 1)) * cW;
   const yScale = v => PAD.t + cH - ((v - minV) / ((maxV - minV) || 0.01)) * cH;
 
   let paths = '', dots = '';
@@ -1454,7 +1453,7 @@ function renderIntel(d) {
   }).join('');
 
   // Trend chart section
-  const trendHTML = _intelTrend.length >= 2 ? `
+  const trendHTML = _intelTrend.length >= 1 ? `
     <div class="trend-chart-wrap intel-section">
       <div class="intel-section-title" style="margin-bottom:10px">Weekly Accuracy Trend</div>
       <div class="trend-legend" id="trend-legend">
@@ -1537,14 +1536,14 @@ function renderIntel(d) {
       </tr>` : '';
 
     return `<tr class="dl-row" onclick="toggleDlRow(${idx})" id="dl-row-${idx}">
-      <td><span style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text)">${esc(row.ticker||'?')}</span> ${typeBadge}<span class="dl-chevron">&#9654;</span></td>
+      <td><span style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text)">${esc(row.ticker||'?')}</span>&nbsp;${typeBadge}</td>
       <td style="font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap">${esc(contract)}</td>
       <td>${verdictBadge('BUY', row.play_correct)}</td>
       <td>${verdictBadge('SKIP', row.noplay_correct)}</td>
       <td>${verdictBadge(jv, row.judge_correct)}</td>
       <td style="color:${outcomeColor[row.outcome]||'var(--text-dim)'};font-weight:600;font-size:10px;white-space:nowrap">${esc(outcomeLabel[row.outcome]||row.outcome)}</td>
       <td style="color:${pct>=0?'var(--green)':'var(--red)'};font-variant-numeric:tabular-nums;white-space:nowrap">${pctStr}</td>
-      <td style="color:var(--text-fade);white-space:nowrap">${esc((row.date||'').slice(5))}</td>
+      <td style="color:var(--text-fade);white-space:nowrap">${esc((row.date||'').slice(5))}&nbsp;<span class="dl-chevron">&#9654;</span></td>
     </tr>${detail}`;
   }).join('');
 
