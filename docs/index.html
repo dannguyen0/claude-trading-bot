@@ -296,11 +296,50 @@ body {
 
 /* Trend chart */
 .trend-chart-wrap { background: var(--surface); border-radius: var(--r); padding: 16px 18px; box-shadow: var(--shadow); margin-bottom: 28px; }
-.trend-legend { display: flex; gap: 16px; margin-bottom: 12px; }
-.trend-leg-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-dim); }
+.trend-legend { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+.trend-leg-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-dim); cursor: pointer; padding: 3px 6px; border-radius: 20px; transition: background .15s; }
+.trend-leg-item:hover { background: var(--surface-2); }
+.trend-leg-item.muted { opacity: .35; }
 .trend-leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.trend-tooltip { position: absolute; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 10px; color: var(--text-dim); pointer-events: none; box-shadow: var(--shadow); z-index: 10; white-space: nowrap; display: none; }
 
-/* Decision log table */
+/* Pattern breakdown */
+.pattern-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 28px; }
+.pattern-card { background: var(--surface); border-radius: var(--r-sm); padding: 12px 14px; box-shadow: var(--shadow-sm); }
+.pattern-ticker { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.pattern-n { font-size: 9px; font-weight: 500; color: var(--text-fade); font-family: inherit; }
+.pattern-agent-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.pattern-agent-lbl { font-size: 9px; font-weight: 600; letter-spacing: .3px; color: var(--text-fade); min-width: 46px; }
+.pattern-mini-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.pattern-mini-fill { height: 100%; border-radius: 2px; }
+.pattern-pct { font-size: 9px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 28px; text-align: right; }
+
+/* Decision log */
+.dl-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.dl-table th { font-size: 9px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--text-fade); padding: 0 10px 8px 0; text-align: left; white-space: nowrap; }
+.dl-table td { padding: 8px 10px 8px 0; border-top: 1px solid var(--border-lt); vertical-align: middle; }
+.dl-row { cursor: pointer; transition: background .1s; }
+.dl-row:hover td { background: var(--surface-2); }
+.dl-row td:first-child { padding-left: 8px; border-radius: 6px 0 0 6px; }
+.dl-row td:last-child  { border-radius: 0 6px 6px 0; }
+.dl-chevron { display: inline-block; transition: transform .2s var(--spring); color: var(--text-fade); font-size: 9px; margin-left: 4px; }
+.dl-row.open .dl-chevron { transform: rotate(90deg); }
+.dl-detail { display: none; }
+.dl-detail.open { display: table-row; }
+.dl-detail-inner { padding: 12px 16px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 600px) { .dl-detail-inner { grid-template-columns: 1fr; } }
+.dl-agent-block { border-radius: 8px; padding: 10px 12px; }
+.dl-agent-block.play   { background: var(--green-bg); }
+.dl-agent-block.noplay { background: var(--red-bg); }
+.dl-agent-block.judge  { background: var(--blue-bg); grid-column: 1 / -1; }
+.dl-agent-lbl { font-size: 8px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; margin-bottom: 4px; }
+.dl-agent-block.play   .dl-agent-lbl { color: var(--green); }
+.dl-agent-block.noplay .dl-agent-lbl { color: var(--red); }
+.dl-agent-block.judge  .dl-agent-lbl { color: var(--blue); }
+.dl-agent-wrong { display: inline-block; font-size: 8px; font-weight: 700; background: var(--red); color: #fff; border-radius: 10px; padding: 1px 6px; margin-left: 4px; letter-spacing: .3px; }
+.dl-agent-txt { font-size: 10px; color: var(--text-dim); line-height: 1.55; }
+
+/* Reuse for legacy cal-stat-row */
 .cal-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
 .cal-stat { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; }
 .cal-stat-val { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
@@ -1322,69 +1361,67 @@ async function loadIntel() {
   }
 }
 
-function agentColor(key) {
-  return key === 'play' ? 'var(--green)' : key === 'noplay' ? 'var(--red)' : 'var(--blue)';
-}
+const AGENT_COLORS = { play: '#34C759', noplay: '#FF3B30', judge: '#007AFF' };
+const AGENT_LABELS = { play: 'Play', noplay: 'No Play', judge: 'Judge' };
 
-function renderTrendChart(trend) {
+function buildTrendChart(trend, muted) {
   if (!trend || trend.length < 2) return '';
-  const W = 560, H = 90, PAD = { t: 8, r: 8, b: 24, l: 32 };
+  const W = 560, H = 110, PAD = { t: 10, r: 10, b: 28, l: 36 };
   const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
   const keys = ['play','noplay','judge'];
-  const colors = { play: '#34C759', noplay: '#FF3B30', judge: '#007AFF' };
-  const allVals = trend.flatMap(w => keys.map(k => w[k]).filter(v => v != null));
-  const minV = Math.max(0, Math.min(...allVals) - 0.05);
-  const maxV = Math.min(1, Math.max(...allVals) + 0.05);
-  const xScale = i => PAD.l + (i / (trend.length - 1)) * cW;
-  const yScale = v => PAD.t + cH - ((v - minV) / (maxV - minV || 1)) * cH;
+  const allVals = trend.flatMap(w => keys.filter(k => !muted[k]).map(k => w[k]).filter(v => v != null));
+  if (!allVals.length) return '';
+  const minV = Math.max(0,   Math.min(...allVals) - 0.08);
+  const maxV = Math.min(1.0, Math.max(...allVals) + 0.08);
+  const xScale = i => PAD.l + (i / Math.max(trend.length - 1, 1)) * cW;
+  const yScale = v => PAD.t + cH - ((v - minV) / ((maxV - minV) || 0.01)) * cH;
 
-  let paths = '';
+  let paths = '', dots = '';
   keys.forEach(k => {
-    const pts = trend.map((w, i) => w[k] != null ? `${xScale(i).toFixed(1)},${yScale(w[k]).toFixed(1)}` : null).filter(Boolean);
-    if (pts.length < 2) return;
-    // Build path skipping nulls
+    if (muted[k]) return;
+    const col = AGENT_COLORS[k];
     let d = '';
     trend.forEach((w, i) => {
       if (w[k] == null) return;
       d += (d === '' ? 'M' : 'L') + `${xScale(i).toFixed(1)} ${yScale(w[k]).toFixed(1)} `;
     });
-    paths += `<path d="${d.trim()}" fill="none" stroke="${colors[k]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>`;
-    // dots
+    if (!d) return;
+    paths += `<path d="${d.trim()}" fill="none" stroke="${col}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`;
     trend.forEach((w, i) => {
       if (w[k] == null) return;
-      paths += `<circle cx="${xScale(i).toFixed(1)}" cy="${yScale(w[k]).toFixed(1)}" r="3" fill="${colors[k]}"/>`;
+      dots += `<circle data-k="${k}" data-i="${i}" cx="${xScale(i).toFixed(1)}" cy="${yScale(w[k]).toFixed(1)}" r="4" fill="${col}" stroke="var(--surface)" stroke-width="1.5" style="cursor:pointer"/>`;
     });
   });
 
-  // x-axis labels (week numbers)
+  // grid + axis
+  let grid = '';
+  [0.25, 0.5, 0.75].forEach(v => {
+    if (v < minV || v > maxV) return;
+    const y = yScale(v).toFixed(1);
+    grid += `<line x1="${PAD.l}" y1="${y}" x2="${PAD.l+cW}" y2="${y}" stroke="var(--border-lt)" stroke-width="1" stroke-dasharray="3 4"/>`;
+    grid += `<text x="${PAD.l-5}" y="${y}" text-anchor="end" dominant-baseline="middle" font-size="8" fill="var(--text-fade)">${Math.round(v*100)}%</text>`;
+  });
   const xLabels = trend.map((w, i) => {
-    const label = (w.week || '').replace(/^\d{4}-W/, 'W');
-    return `<text x="${xScale(i).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="8" fill="var(--text-fade)">${esc(label)}</text>`;
+    const lbl = (w.week || '').replace(/^\d{4}-W0?/, 'W');
+    return `<text x="${xScale(i).toFixed(1)}" y="${H-4}" text-anchor="middle" font-size="8" fill="var(--text-fade)">${esc(lbl)}</text>`;
   }).join('');
-  // y-axis labels
-  const yLabels = [0.25, 0.5, 0.75, 1.0].filter(v => v >= minV && v <= maxV).map(v =>
-    `<text x="${PAD.l - 4}" y="${yScale(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="8" fill="var(--text-fade)">${Math.round(v*100)}%</text>`
-  ).join('');
 
-  return `
-    <div class="trend-chart-wrap">
-      <div class="intel-section-title" style="margin-bottom:10px">Weekly Accuracy Trend</div>
-      <div class="trend-legend">
-        <div class="trend-leg-item"><div class="trend-leg-dot" style="background:#34C759"></div>Play</div>
-        <div class="trend-leg-item"><div class="trend-leg-dot" style="background:#FF3B30"></div>No Play</div>
-        <div class="trend-leg-item"><div class="trend-leg-dot" style="background:#007AFF"></div>Judge</div>
-      </div>
-      <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;overflow:visible">
-        <line x1="${PAD.l}" y1="${PAD.t}" x2="${PAD.l}" y2="${PAD.t+cH}" stroke="var(--border-lt)" stroke-width="1"/>
-        <line x1="${PAD.l}" y1="${PAD.t+cH}" x2="${PAD.l+cW}" y2="${PAD.t+cH}" stroke="var(--border-lt)" stroke-width="1"/>
-        ${yLabels}${xLabels}${paths}
-      </svg>
-    </div>`;
+  const svgId = 'trend-svg-' + Math.random().toString(36).slice(2);
+  return `<div style="position:relative">
+    <svg id="${svgId}" viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;display:block"
+      data-trend='${JSON.stringify(trend)}'>
+      ${grid}${xLabels}${paths}${dots}
+    </svg>
+    <div class="trend-tooltip" id="trend-tip"></div>
+  </div>`;
 }
+
+let _intelMuted = { play: false, noplay: false, judge: false };
+let _intelTrend = [];
 
 function renderIntel(d) {
   const agents    = d.agents || {};
-  const trend     = d.weekly_trend || [];
+  _intelTrend     = d.weekly_trend || [];
   const decisions = d.decisions || [];
   const total     = d.total || 0;
 
@@ -1401,75 +1438,183 @@ function renderIntel(d) {
   }
 
   // Agent cards
-  const agentOrder = ['play', 'noplay', 'judge'];
-  const agentColors = { play: '#34C759', noplay: '#FF3B30', judge: '#007AFF' };
-  const cardsHTML = agentOrder.map(key => {
-    const ag = agents[key] || {};
+  const cardsHTML = ['play','noplay','judge'].map(key => {
+    const ag  = agents[key] || {};
     const acc = ag.accuracy != null ? Math.round(ag.accuracy * 100) : null;
-    const col = agentColors[key];
+    const col = AGENT_COLORS[key];
     const accColor = acc == null ? 'var(--text-fade)' : acc >= 60 ? 'var(--green)' : acc >= 50 ? 'var(--blue)' : 'var(--red)';
-    const barPct = acc != null ? acc : 0;
     return `<div class="agent-card">
       <div class="agent-card-label" style="color:${col}">${esc(ag.label || key)}</div>
       <div class="agent-card-name">${esc(ag.label || key)}</div>
       <div class="agent-card-role">${esc(ag.role || '')}</div>
       <div class="agent-acc" style="color:${accColor}">${acc != null ? acc + '%' : '--'}</div>
-      <div class="agent-sub">${ag.correct || 0} correct &middot; ${ag.total || 0} total decisions</div>
-      <div class="agent-bar-track"><div class="agent-bar-fill" style="width:${barPct}%;background:${col}"></div></div>
+      <div class="agent-sub">${ag.correct || 0} correct &middot; ${ag.total || 0} decisions</div>
+      <div class="agent-bar-track"><div class="agent-bar-fill" style="width:${acc||0}%;background:${col}"></div></div>
     </div>`;
   }).join('');
 
-  // Decision log rows
-  const outcomeLabel = {
-    'win': 'Won',
-    'loss': 'Lost',
-    'correct_skip': 'Correct Skip',
-    'missed_winner': 'Missed Winner',
-  };
-  const outcomeColor = {
-    'win': 'var(--green)', 'correct_skip': 'var(--green)',
-    'loss': 'var(--red)',  'missed_winner': 'var(--red)',
-  };
-  const verdictBadge = (verdict, correct) => {
-    const col = correct ? 'var(--green)' : 'var(--red)';
-    const bg  = correct ? 'var(--green-bg)' : 'var(--red-bg)';
-    return `<span style="background:${bg};color:${col};border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700">${esc(verdict)}</span>`;
+  // Trend chart section
+  const trendHTML = _intelTrend.length >= 2 ? `
+    <div class="trend-chart-wrap intel-section">
+      <div class="intel-section-title" style="margin-bottom:10px">Weekly Accuracy Trend</div>
+      <div class="trend-legend" id="trend-legend">
+        ${['play','noplay','judge'].map(k =>
+          `<div class="trend-leg-item" data-key="${k}" onclick="toggleTrendLine('${k}')">
+            <div class="trend-leg-dot" style="background:${AGENT_COLORS[k]}"></div>${AGENT_LABELS[k]}
+          </div>`
+        ).join('')}
+      </div>
+      <div id="trend-chart-host">${buildTrendChart(_intelTrend, _intelMuted)}</div>
+    </div>` : '';
+
+  // Pattern breakdown by ticker
+  const byTicker = {};
+  decisions.forEach(row => {
+    const tk = row.ticker || '?';
+    if (!byTicker[tk]) byTicker[tk] = { play_c:0, noplay_c:0, judge_c:0, n:0, tickers:[] };
+    const b = byTicker[tk];
+    b.n++;
+    if (row.play_correct)   b.play_c++;
+    if (row.noplay_correct) b.noplay_c++;
+    if (row.judge_correct)  b.judge_c++;
+  });
+  const patternCards = Object.entries(byTicker).sort((a,b) => b[1].n - a[1].n).map(([tk, b]) => {
+    const rows = ['play','noplay','judge'].map(k => {
+      const c = b[`${k}_c`], pct = b.n ? Math.round(c/b.n*100) : 0;
+      const col = pct >= 60 ? AGENT_COLORS[k] : pct >= 40 ? 'var(--text-fade)' : 'var(--red)';
+      return `<div class="pattern-agent-row">
+        <div class="pattern-agent-lbl" style="color:${AGENT_COLORS[k]}">${AGENT_LABELS[k]}</div>
+        <div class="pattern-mini-bar"><div class="pattern-mini-fill" style="width:${pct}%;background:${col}"></div></div>
+        <div class="pattern-pct" style="color:${col}">${pct}%</div>
+      </div>`;
+    }).join('');
+    return `<div class="pattern-card">
+      <div class="pattern-ticker">${esc(tk)}<span class="pattern-n">${b.n}x</span></div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  // Decision log with expandable rows
+  const outcomeLabel = { win:'Won', loss:'Lost', correct_skip:'Correct Skip', missed_winner:'Missed Winner' };
+  const outcomeColor = { win:'var(--green)', correct_skip:'var(--green)', loss:'var(--red)', missed_winner:'var(--red)' };
+  const verdictBadge = (v, ok) => {
+    const c = ok ? 'var(--green)' : 'var(--red)', bg = ok ? 'var(--green-bg)' : 'var(--red-bg)';
+    return `<span style="background:${bg};color:${c};border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700">${esc(v)}</span>`;
   };
 
-  const rowsHTML = decisions.length ? decisions.map(row => {
+  const rowsHTML = decisions.map((row, idx) => {
     const contract = skipContractLabel(row);
     const pct = parseFloat(row.pct_change || 0);
     const pctStr = (pct >= 0 ? '+' : '') + pct.toFixed(0) + '%';
     const typeBadge = row.type === 'trade'
       ? `<span style="background:var(--blue-bg);color:var(--blue);border-radius:4px;padding:1px 5px;font-size:8px;font-weight:700">TRADE</span>`
       : `<span style="background:var(--surface-2);color:var(--text-fade);border-radius:4px;padding:1px 5px;font-size:8px;font-weight:700">SKIP</span>`;
-    return `<tr>
-      <td><span style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text)">${esc(row.ticker||'?')}</span> ${typeBadge}</td>
-      <td style="font-family:'JetBrains Mono',monospace;font-size:10px">${esc(contract)}</td>
+    const jv = row.type === 'trade' ? 'BUY' : 'SKIP';
+    const conf = row.judge_confidence ? ` &middot; conf ${row.judge_confidence}/10` : '';
+
+    // Detail panel
+    const bull  = row.bull_case || '';
+    const bear  = row.bear_case || '';
+    const jrz   = row.judge_reasoning || '';
+    const detail = (bull || bear || jrz) ? `
+      <tr class="dl-detail" id="dl-detail-${idx}">
+        <td colspan="8" style="padding:0 8px 8px 8px">
+          <div class="dl-detail-inner">
+            <div class="dl-agent-block play">
+              <div class="dl-agent-lbl">Play${!row.play_correct ? '<span class="dl-agent-wrong">WRONG</span>' : ''}</div>
+              <div class="dl-agent-txt">${esc(bull || 'No argument recorded.')}</div>
+            </div>
+            <div class="dl-agent-block noplay">
+              <div class="dl-agent-lbl">No Play${!row.noplay_correct ? '<span class="dl-agent-wrong">WRONG</span>' : ''}</div>
+              <div class="dl-agent-txt">${esc(bear || 'No argument recorded.')}</div>
+            </div>
+            <div class="dl-agent-block judge">
+              <div class="dl-agent-lbl">Judge said ${jv}${conf}${!row.judge_correct ? '<span class="dl-agent-wrong">WRONG</span>' : ''}</div>
+              <div class="dl-agent-txt">${esc(jrz || 'No reasoning recorded.')}</div>
+            </div>
+          </div>
+        </td>
+      </tr>` : '';
+
+    return `<tr class="dl-row" onclick="toggleDlRow(${idx})" id="dl-row-${idx}">
+      <td><span style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text)">${esc(row.ticker||'?')}</span> ${typeBadge}<span class="dl-chevron">&#9654;</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:10px;white-space:nowrap">${esc(contract)}</td>
       <td>${verdictBadge('BUY', row.play_correct)}</td>
-      <td>${verdictBadge(row.type === 'trade' ? 'SKIP' : 'SKIP', row.noplay_correct)}</td>
-      <td>${verdictBadge(row.type === 'trade' ? 'BUY' : 'SKIP', row.judge_correct)}</td>
-      <td style="color:${outcomeColor[row.outcome]||'var(--text-dim)'};font-weight:600;font-size:10px">${esc(outcomeLabel[row.outcome]||row.outcome)}</td>
-      <td style="color:${pct>=0?'var(--green)':'var(--red)'};font-variant-numeric:tabular-nums">${pctStr}</td>
-      <td style="color:var(--text-fade)">${esc((row.date||'').slice(5))}</td>
-    </tr>`;
-  }).join('') : '<tr><td colspan="8" style="color:var(--text-fade);padding:20px 0;text-align:center">No resolved decisions yet</td></tr>';
+      <td>${verdictBadge('SKIP', row.noplay_correct)}</td>
+      <td>${verdictBadge(jv, row.judge_correct)}</td>
+      <td style="color:${outcomeColor[row.outcome]||'var(--text-dim)'};font-weight:600;font-size:10px;white-space:nowrap">${esc(outcomeLabel[row.outcome]||row.outcome)}</td>
+      <td style="color:${pct>=0?'var(--green)':'var(--red)'};font-variant-numeric:tabular-nums;white-space:nowrap">${pctStr}</td>
+      <td style="color:var(--text-fade);white-space:nowrap">${esc((row.date||'').slice(5))}</td>
+    </tr>${detail}`;
+  }).join('');
 
   intelBody.innerHTML = `
     <div class="agent-cards">${cardsHTML}</div>
-    ${renderTrendChart(trend)}
+    ${trendHTML}
+    ${patternCards ? `
     <div class="intel-section">
-      <div class="intel-section-title">Decision Log &mdash; last ${decisions.length} resolved</div>
-      <div style="overflow-x:auto">
-        <table class="resolved-table">
+      <div class="intel-section-title">Accuracy by Ticker</div>
+      <div class="pattern-grid">${patternCards}</div>
+    </div>` : ''}
+    <div class="intel-section">
+      <div class="intel-section-title">Decision Log &mdash; ${decisions.length} resolved &middot; click a row to see the debate</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table class="dl-table" style="min-width:560px">
           <thead><tr>
             <th>Ticker</th><th>Contract</th>
             <th>Play</th><th>No Play</th><th>Judge</th>
             <th>Outcome</th><th>Move</th><th>Date</th>
           </tr></thead>
-          <tbody>${rowsHTML}</tbody>
+          <tbody>${rowsHTML || '<tr><td colspan="8" style="color:var(--text-fade);padding:20px 0;text-align:center">No resolved decisions yet</td></tr>'}</tbody>
         </table>
       </div>
     </div>`;
+
+  // Attach tooltip to trend chart dots
+  attachTrendTooltip();
+}
+
+function toggleDlRow(idx) {
+  const row    = document.getElementById(`dl-row-${idx}`);
+  const detail = document.getElementById(`dl-detail-${idx}`);
+  if (!row || !detail) return;
+  const open = detail.classList.toggle('open');
+  row.classList.toggle('open', open);
+}
+
+function toggleTrendLine(key) {
+  _intelMuted[key] = !_intelMuted[key];
+  // update legend
+  const leg = document.querySelector(`.trend-leg-item[data-key="${key}"]`);
+  if (leg) leg.classList.toggle('muted', _intelMuted[key]);
+  // redraw chart
+  const host = document.getElementById('trend-chart-host');
+  if (host) { host.innerHTML = buildTrendChart(_intelTrend, _intelMuted); attachTrendTooltip(); }
+}
+
+function attachTrendTooltip() {
+  const tip = document.getElementById('trend-tip');
+  if (!tip) return;
+  document.querySelectorAll('#trend-chart-host circle[data-k]').forEach(el => {
+    el.addEventListener('mouseenter', evt => {
+      const k = el.dataset.k, i = parseInt(el.dataset.i);
+      const w = _intelTrend[i];
+      if (!w) return;
+      const val = w[k];
+      if (val == null) return;
+      const rect = el.closest('svg').getBoundingClientRect();
+      const cx = parseFloat(el.getAttribute('cx')), cy = parseFloat(el.getAttribute('cy'));
+      const svgW = rect.width, svgH = rect.height;
+      const vb = el.closest('svg').viewBox.baseVal;
+      const px = rect.left + (cx / vb.width) * svgW;
+      const py = rect.top  + (cy / vb.height) * svgH;
+      tip.style.display = 'block';
+      tip.style.left = (px - tip.offsetWidth/2) + 'px';
+      tip.style.top  = (py - 38) + 'px';
+      const wk = (w.week||'').replace(/^\d{4}-W0?/,'W');
+      tip.innerHTML = `<b style="color:${AGENT_COLORS[k]}">${AGENT_LABELS[k]}</b> ${Math.round(val*100)}%<br><span style="color:var(--text-fade)">${wk} &middot; ${w.n||0} decisions</span>`;
+    });
+    el.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
 }
 </script>
