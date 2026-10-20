@@ -256,26 +256,51 @@ body {
 }
 .intel-btn:hover { color: var(--blue); border-color: var(--blue); background: var(--blue-bg); transform: scale(1.02); }
 
-/* Judge Intel modal */
+/* Agent Intel full-page overlay */
 .intel-overlay {
-  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35);
-  backdrop-filter: blur(4px); z-index: 200; align-items: flex-end; justify-content: center;
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: var(--bg);
 }
-.intel-overlay.open { display: flex; }
-.intel-sheet {
-  background: var(--surface); border-radius: 20px 20px 0 0;
-  width: 100%; max-width: 680px; max-height: 82vh; overflow-y: auto;
-  padding: 0 0 40px; box-shadow: 0 -4px 40px rgba(0,0,0,0.18);
-  animation: slideUp .28s var(--spring);
+.intel-overlay.open { display: block; animation: intelFadeIn .22s ease; overflow-y: auto; }
+@keyframes intelFadeIn { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+.intel-page { max-width: 900px; margin: 0 auto; padding: 0 0 60px; }
+.intel-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 14px; position: sticky; top: 0;
+  background: var(--bg); border-bottom: 1px solid var(--border-lt); z-index: 10;
 }
-@keyframes slideUp { from { transform: translateY(100%); opacity:0; } to { transform: translateY(0); opacity:1; } }
-.intel-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 12px auto 0; }
-.intel-header { padding: 18px 22px 0; display: flex; align-items: center; justify-content: space-between; }
+.intel-back {
+  background: none; border: none; color: var(--blue); font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: inherit; padding: 4px 0; letter-spacing: -.1px;
+}
+.intel-back:hover { opacity: .75; }
 .intel-title { font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
-.intel-close { background: var(--surface-2); border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 14px; cursor: pointer; color: var(--text-fade); display: flex; align-items: center; justify-content: center; }
-.intel-body { padding: 16px 22px 0; }
-.intel-section { margin-bottom: 20px; }
-.intel-section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-fade); margin-bottom: 10px; }
+.intel-body { padding: 20px 20px 0; }
+.intel-section { margin-bottom: 28px; }
+.intel-section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-fade); margin-bottom: 12px; }
+
+/* Agent cards */
+.agent-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+@media (max-width: 600px) { .agent-cards { grid-template-columns: 1fr; } }
+.agent-card {
+  background: var(--surface); border-radius: var(--r); padding: 18px 20px 16px;
+  box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 6px;
+}
+.agent-card-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.agent-card-name { font-size: 20px; font-weight: 700; letter-spacing: -.4px; color: var(--text); }
+.agent-card-role { font-size: 10px; color: var(--text-fade); margin-bottom: 6px; }
+.agent-acc { font-size: 36px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.8px; line-height: 1; margin: 4px 0 2px; }
+.agent-sub { font-size: 10px; color: var(--text-fade); font-variant-numeric: tabular-nums; }
+.agent-bar-track { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 10px; }
+.agent-bar-fill { height: 100%; border-radius: 2px; transition: width .8s var(--spring); }
+
+/* Trend chart */
+.trend-chart-wrap { background: var(--surface); border-radius: var(--r); padding: 16px 18px; box-shadow: var(--shadow); margin-bottom: 28px; }
+.trend-legend { display: flex; gap: 16px; margin-bottom: 12px; }
+.trend-leg-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-dim); }
+.trend-leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* Decision log table */
 .cal-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
 .cal-stat { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; }
 .cal-stat-val { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
@@ -388,19 +413,19 @@ th.sort-active { color: var(--text); }
   </div>
   <div class="logo-badge"><span class="dot"></span>Aggressive 2.0 Live</div>
   <div class="header-right">
-    <button class="intel-btn" id="intel-btn">&#129504; Judge Intel</button>
+    <button class="intel-btn" id="intel-btn">&#129504; Agent Intel</button>
     <button class="refresh-btn" id="refresh-btn">&#8635; Refresh</button>
     <div class="last-upd" id="last-upd">Loading...</div>
   </div>
 </div>
 
-<!-- Judge Intel sheet -->
+<!-- Agent Intel full-page overlay -->
 <div class="intel-overlay" id="intel-overlay">
-  <div class="intel-sheet" id="intel-sheet">
-    <div class="intel-handle"></div>
-    <div class="intel-header">
-      <div class="intel-title">&#129504; Judge Intelligence</div>
-      <button class="intel-close" id="intel-close">&#10005;</button>
+  <div class="intel-page" id="intel-page">
+    <div class="intel-topbar">
+      <button class="intel-back" id="intel-close">&#8592; Back</button>
+      <div class="intel-title">Agent Intelligence</div>
+      <div style="width:64px"></div>
     </div>
     <div class="intel-body" id="intel-body">
       <div class="intel-empty">Loading...</div>
@@ -1273,22 +1298,22 @@ function setActFilter(f) {
 
 loadAll();
 
-// â”€â”€ Judge Intel panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ Agent Intel full-page panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const intelOverlay = document.getElementById('intel-overlay');
 const intelBody    = document.getElementById('intel-body');
 let intelLoaded = false;
 
 document.getElementById('intel-btn').addEventListener('click', () => {
   intelOverlay.classList.add('open');
+  intelOverlay.scrollTop = 0;
   if (!intelLoaded) loadIntel();
 });
 document.getElementById('intel-close').addEventListener('click', () => intelOverlay.classList.remove('open'));
-intelOverlay.addEventListener('click', e => { if (e.target === intelOverlay) intelOverlay.classList.remove('open'); });
 
 async function loadIntel() {
-  intelBody.innerHTML = '<div class="intel-empty">Loading...</div>';
+  intelBody.innerHTML = '<div class="intel-empty">Loading agent data...</div>';
   try {
-    const r = await fetch(`${API}/?strategy=naked&action=judge_intel`);
+    const r = await fetch(`${API}/?strategy=naked&action=agent_intel`);
     const d = await r.json();
     intelLoaded = true;
     renderIntel(d);
@@ -1297,91 +1322,154 @@ async function loadIntel() {
   }
 }
 
-function renderIntel(d) {
-  const cal = d.calibration || {};
-  const resolved = d.resolved_skips || [];
-  const n = cal.total_resolved || 0;
+function agentColor(key) {
+  return key === 'play' ? 'var(--green)' : key === 'noplay' ? 'var(--red)' : 'var(--blue)';
+}
 
-  if (!n) {
-    intelBody.innerHTML = '<div class="intel-empty">No resolved skip outcomes yet â€” check back after the first few SKIPs expire or move significantly.</div>';
+function renderTrendChart(trend) {
+  if (!trend || trend.length < 2) return '';
+  const W = 560, H = 90, PAD = { t: 8, r: 8, b: 24, l: 32 };
+  const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
+  const keys = ['play','noplay','judge'];
+  const colors = { play: '#34C759', noplay: '#FF3B30', judge: '#007AFF' };
+  const allVals = trend.flatMap(w => keys.map(k => w[k]).filter(v => v != null));
+  const minV = Math.max(0, Math.min(...allVals) - 0.05);
+  const maxV = Math.min(1, Math.max(...allVals) + 0.05);
+  const xScale = i => PAD.l + (i / (trend.length - 1)) * cW;
+  const yScale = v => PAD.t + cH - ((v - minV) / (maxV - minV || 1)) * cH;
+
+  let paths = '';
+  keys.forEach(k => {
+    const pts = trend.map((w, i) => w[k] != null ? `${xScale(i).toFixed(1)},${yScale(w[k]).toFixed(1)}` : null).filter(Boolean);
+    if (pts.length < 2) return;
+    // Build path skipping nulls
+    let d = '';
+    trend.forEach((w, i) => {
+      if (w[k] == null) return;
+      d += (d === '' ? 'M' : 'L') + `${xScale(i).toFixed(1)} ${yScale(w[k]).toFixed(1)} `;
+    });
+    paths += `<path d="${d.trim()}" fill="none" stroke="${colors[k]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>`;
+    // dots
+    trend.forEach((w, i) => {
+      if (w[k] == null) return;
+      paths += `<circle cx="${xScale(i).toFixed(1)}" cy="${yScale(w[k]).toFixed(1)}" r="3" fill="${colors[k]}"/>`;
+    });
+  });
+
+  // x-axis labels (week numbers)
+  const xLabels = trend.map((w, i) => {
+    const label = (w.week || '').replace(/^\d{4}-W/, 'W');
+    return `<text x="${xScale(i).toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="8" fill="var(--text-fade)">${esc(label)}</text>`;
+  }).join('');
+  // y-axis labels
+  const yLabels = [0.25, 0.5, 0.75, 1.0].filter(v => v >= minV && v <= maxV).map(v =>
+    `<text x="${PAD.l - 4}" y="${yScale(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="8" fill="var(--text-fade)">${Math.round(v*100)}%</text>`
+  ).join('');
+
+  return `
+    <div class="trend-chart-wrap">
+      <div class="intel-section-title" style="margin-bottom:10px">Weekly Accuracy Trend</div>
+      <div class="trend-legend">
+        <div class="trend-leg-item"><div class="trend-leg-dot" style="background:#34C759"></div>Play</div>
+        <div class="trend-leg-item"><div class="trend-leg-dot" style="background:#FF3B30"></div>No Play</div>
+        <div class="trend-leg-item"><div class="trend-leg-dot" style="background:#007AFF"></div>Judge</div>
+      </div>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;overflow:visible">
+        <line x1="${PAD.l}" y1="${PAD.t}" x2="${PAD.l}" y2="${PAD.t+cH}" stroke="var(--border-lt)" stroke-width="1"/>
+        <line x1="${PAD.l}" y1="${PAD.t+cH}" x2="${PAD.l+cW}" y2="${PAD.t+cH}" stroke="var(--border-lt)" stroke-width="1"/>
+        ${yLabels}${xLabels}${paths}
+      </svg>
+    </div>`;
+}
+
+function renderIntel(d) {
+  const agents    = d.agents || {};
+  const trend     = d.weekly_trend || [];
+  const decisions = d.decisions || [];
+  const total     = d.total || 0;
+
+  if (!total) {
+    intelBody.innerHTML = `
+      <div style="text-align:center;padding:60px 20px">
+        <div style="font-size:32px;margin-bottom:12px">&#129504;</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px">No decisions yet</div>
+        <div style="font-size:12px;color:var(--text-fade);max-width:320px;margin:0 auto;line-height:1.6">
+          Agent accuracy data will appear once the first SKIPs expire or trades close. Check back after a few trading days.
+        </div>
+      </div>`;
     return;
   }
 
-  const acc     = Math.round((cal.overall_accuracy || 0) * 100);
-  const missed  = Math.round((cal.missed_winners_pct || 0) * 100);
-  const playWin = Math.round((cal.play_win_rate || 0) * 100);
-
-  // Confidence band rows
-  const byConf = cal.by_confidence || {};
-  const bandOrder = ['high', 'medium', 'low'];
-  const bandHTML = bandOrder.filter(b => byConf[b]).map(b => {
-    const bd = byConf[b];
-    const a  = Math.round((bd.accuracy || 0) * 100);
-    const v  = bd.verdict || '';
-    const barCol = a >= 65 ? 'var(--green)' : a >= 50 ? 'var(--blue)' : 'var(--red)';
-    const flagCls = v === 'OVERCONFIDENT' ? 'flag-over' : v === 'UNDERCONFIDENT' ? 'flag-under' : 'flag-ok';
-    const flagTxt = v === 'well_calibrated' ? 'Calibrated' : v;
-    return `<div class="conf-band">
-      <div class="conf-band-range">Conf ${esc(bd.range || b)}</div>
-      <div class="conf-band-bar-wrap"><div class="conf-band-bar" style="width:${a}%;background:${barCol}"></div></div>
-      <div class="conf-band-pct" style="color:${barCol}">${a}%</div>
-      <div class="conf-band-flag ${flagCls}">${esc(flagTxt)}</div>
-      <div style="font-size:10px;color:var(--text-fade)">${bd.n || 0} calls</div>
+  // Agent cards
+  const agentOrder = ['play', 'noplay', 'judge'];
+  const agentColors = { play: '#34C759', noplay: '#FF3B30', judge: '#007AFF' };
+  const cardsHTML = agentOrder.map(key => {
+    const ag = agents[key] || {};
+    const acc = ag.accuracy != null ? Math.round(ag.accuracy * 100) : null;
+    const col = agentColors[key];
+    const accColor = acc == null ? 'var(--text-fade)' : acc >= 60 ? 'var(--green)' : acc >= 50 ? 'var(--blue)' : 'var(--red)';
+    const barPct = acc != null ? acc : 0;
+    return `<div class="agent-card">
+      <div class="agent-card-label" style="color:${col}">${esc(ag.label || key)}</div>
+      <div class="agent-card-name">${esc(ag.label || key)}</div>
+      <div class="agent-card-role">${esc(ag.role || '')}</div>
+      <div class="agent-acc" style="color:${accColor}">${acc != null ? acc + '%' : '--'}</div>
+      <div class="agent-sub">${ag.correct || 0} correct &middot; ${ag.total || 0} total decisions</div>
+      <div class="agent-bar-track"><div class="agent-bar-fill" style="width:${barPct}%;background:${col}"></div></div>
     </div>`;
   }).join('');
 
-  // Resolved skips table (last 20)
-  const recent = resolved.slice(0, 20);
-  const rowsHTML = recent.length ? recent.map(r => {
-    const correct = r.was_correct === true || r.was_correct === 'True';
-    const pct = parseFloat(r.pct_change || 0);
-    const pctStr = (pct >= 0 ? '+' : '') + pct.toFixed(0) + '%';
-    const outcomeClass = correct ? 'outcome-correct' : 'outcome-missed';
-    const outcomeLabel = correct ? 'Correct Skip' : 'Missed Winner';
-    const conf = r.judge_confidence || 'â€”';
-    const d = (r.evaluated_at || r.skipped_at || '').slice(0,10);
-    const contract = contractLabel(r) || (r.direction === 'bearish' ? 'Put' : 'Call');
-    return `<tr>
-      <td>${esc(r.ticker || '?')}</td>
-      <td>${esc(contract)}</td>
-      <td>${esc(conf)}/10</td>
-      <td style="color:${pct>=0?'var(--green)':'var(--red)'}">${pctStr}</td>
-      <td class="${outcomeClass}">${outcomeLabel}</td>
-      <td style="color:var(--text-fade)">${esc(d)}</td>
-    </tr>`;
-  }).join('') : '<tr><td colspan="6" style="color:var(--text-fade);padding:16px 0">No resolved outcomes yet</td></tr>';
+  // Decision log rows
+  const outcomeLabel = {
+    'win': 'Won',
+    'loss': 'Lost',
+    'correct_skip': 'Correct Skip',
+    'missed_winner': 'Missed Winner',
+  };
+  const outcomeColor = {
+    'win': 'var(--green)', 'correct_skip': 'var(--green)',
+    'loss': 'var(--red)',  'missed_winner': 'var(--red)',
+  };
+  const verdictBadge = (verdict, correct) => {
+    const col = correct ? 'var(--green)' : 'var(--red)';
+    const bg  = correct ? 'var(--green-bg)' : 'var(--red-bg)';
+    return `<span style="background:${bg};color:${col};border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700">${esc(verdict)}</span>`;
+  };
 
-  const topMissed = (cal.top_missed_tickers || []).join(', ') || 'â€”';
+  const rowsHTML = decisions.length ? decisions.map(row => {
+    const contract = skipContractLabel(row);
+    const pct = parseFloat(row.pct_change || 0);
+    const pctStr = (pct >= 0 ? '+' : '') + pct.toFixed(0) + '%';
+    const typeBadge = row.type === 'trade'
+      ? `<span style="background:var(--blue-bg);color:var(--blue);border-radius:4px;padding:1px 5px;font-size:8px;font-weight:700">TRADE</span>`
+      : `<span style="background:var(--surface-2);color:var(--text-fade);border-radius:4px;padding:1px 5px;font-size:8px;font-weight:700">SKIP</span>`;
+    return `<tr>
+      <td><span style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--text)">${esc(row.ticker||'?')}</span> ${typeBadge}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:10px">${esc(contract)}</td>
+      <td>${verdictBadge('BUY', row.play_correct)}</td>
+      <td>${verdictBadge(row.type === 'trade' ? 'SKIP' : 'SKIP', row.noplay_correct)}</td>
+      <td>${verdictBadge(row.type === 'trade' ? 'BUY' : 'SKIP', row.judge_correct)}</td>
+      <td style="color:${outcomeColor[row.outcome]||'var(--text-dim)'};font-weight:600;font-size:10px">${esc(outcomeLabel[row.outcome]||row.outcome)}</td>
+      <td style="color:${pct>=0?'var(--green)':'var(--red)'};font-variant-numeric:tabular-nums">${pctStr}</td>
+      <td style="color:var(--text-fade)">${esc((row.date||'').slice(5))}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="8" style="color:var(--text-fade);padding:20px 0;text-align:center">No resolved decisions yet</td></tr>';
 
   intelBody.innerHTML = `
+    <div class="agent-cards">${cardsHTML}</div>
+    ${renderTrendChart(trend)}
     <div class="intel-section">
-      <div class="intel-section-title">Overall Performance</div>
-      <div class="cal-stat-row">
-        <div class="cal-stat">
-          <div class="cal-stat-val" style="color:${acc>=60?'var(--green)':acc>=50?'var(--blue)':'var(--red)'}">${acc}%</div>
-          <div class="cal-stat-lbl">SKIP Accuracy<br><span style="font-size:9px">${n} decisions</span></div>
-        </div>
-        <div class="cal-stat">
-          <div class="cal-stat-val" style="color:${missed>40?'var(--red)':missed>25?'var(--blue)':'var(--green)'}">${missed}%</div>
-          <div class="cal-stat-lbl">Missed Winners<br><span style="font-size:9px">Play was right</span></div>
-        </div>
-        <div class="cal-stat">
-          <div class="cal-stat-val" style="color:var(--text-dim)">${playWin}%</div>
-          <div class="cal-stat-lbl">Play Win Rate<br><span style="font-size:9px">vs No Play ${100-playWin}%</span></div>
-        </div>
+      <div class="intel-section-title">Decision Log &mdash; last ${decisions.length} resolved</div>
+      <div style="overflow-x:auto">
+        <table class="resolved-table">
+          <thead><tr>
+            <th>Ticker</th><th>Contract</th>
+            <th>Play</th><th>No Play</th><th>Judge</th>
+            <th>Outcome</th><th>Move</th><th>Date</th>
+          </tr></thead>
+          <tbody>${rowsHTML}</tbody>
+        </table>
       </div>
-      ${topMissed !== 'â€”' ? `<div style="font-size:11px;color:var(--text-fade)">Most missed winners on: <b style="color:var(--text-dim)">${esc(topMissed)}</b></div>` : ''}
-    </div>
-    <div class="intel-section">
-      <div class="intel-section-title">Confidence Calibration</div>
-      <div class="conf-band-row">${bandHTML || '<div class="intel-empty">Not enough data per band yet</div>'}</div>
-    </div>
-    <div class="intel-section">
-      <div class="intel-section-title">Recent Resolved Outcomes</div>
-      <table class="resolved-table">
-        <thead><tr><th>Ticker</th><th>Contract</th><th>Conf</th><th>Move</th><th>Outcome</th><th>Date</th></tr></thead>
-        <tbody>${rowsHTML}</tbody>
-      </table>
     </div>`;
 }
 </script>
